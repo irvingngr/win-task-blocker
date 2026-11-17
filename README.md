@@ -2,7 +2,7 @@
   <img src="Assets/logo.png" alt="Win Task Blocker Logo" width="128" height="128" />
 </p>
 
-<h1 align="center">Win Task Blocker v2.0.1 — Acrylic Glass Edition</h1>
+<h1 align="center">Win Task Blocker</h1>
 
 <p align="center">
   <strong>Modern, ultra-lightweight process blocker, conditional dependency guardian, and Windows startup manager for Windows 10 &amp; Windows 11.</strong>
@@ -20,17 +20,12 @@
 ## 🌐 Bilingual Interface (English & Spanish)
 
 **Win Task Blocker** is fully available in **both English and Spanish** (`EN` / `ES`):
-- Launches in **English** by default.
-- Switch between **English** and **Spanish** at any time with a single click using the **flag toggle button** in the top titlebar. Your language preference is automatically saved.
 
 ---
 
 ## ✨ Key Features
 
 1. **Native Acrylic Glass Interface & Dynamic Crystal Accents**:
-   - Borderless integrated header with native Windows 10/11 DWM Acrylic Blur (`SetWindowCompositionAttribute` + `DwmSetWindowAttribute`) and single 8px rounded corners.
-   - Defaults to **40% Opacity — Windows Blue**.
-   - Real-time **Crystal Opacity Slider** (`15%` – `95%`) and 4 selectable crystal finishes (**Windows Blue**, **Purple Nebula**, **Midnight Dark**, and **Arctic Cyan**). Selecting any finish dynamically updates the acrylic glass tint, button borders, badges, and accented texts across the entire interface.
 2. **Instant Cold-Boot, Native Splash Screen & Minimized Windows Startup**:
    - Compiled with **ReadyToRun (R2R)** native precompilation and asynchronous background `.exe` icon resolution for near-instant cold startup, accompanied by a sleek **Splash Screen** featuring the official logo.
    - Includes **"Run on Windows startup (minimized)"** (`--startup --minimized`) and automatically starts in **Block Enabled** mode whenever the app launches (even if it was previously stopped).
