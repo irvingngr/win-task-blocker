@@ -798,6 +798,7 @@ public partial class MainWindow : Window
     {
         SaveAllConfig();
         UpdateCountersUi();
+        _engine.ForceScanNow();
     }
 
     private void CreateNewConditionalRule_Click(object sender, RoutedEventArgs e)
@@ -851,6 +852,7 @@ public partial class MainWindow : Window
 
         RebuildQuickProfilesSidebar();
         SaveAllConfig();
+        _engine.ForceScanNow();
 
         FooterStatusText.Text = _loc.IsSpanish
             ? $"Perfil '{rule.Name}' actualizado en Perfiles Rápidos."

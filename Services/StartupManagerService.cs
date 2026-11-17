@@ -258,20 +258,54 @@ public class StartupManagerService
             string? exePath = Environment.ProcessPath;
             if (string.IsNullOrWhiteSpace(exePath)) return;
 
+            string args = startMinimized ? "--startup --minimized" : "--startup";
             using var runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true);
             if (enable)
             {
-                string args = startMinimized ? "--startup --minimized" : "--startup";
                 runKey?.SetValue(appName, $"\"{exePath}\" {args}", RegistryValueKind.String);
 
                 using var approvedKey = Registry.CurrentUser.CreateSubKey(ApprovedRunKeyPath, writable: true);
                 byte[] enabledBytes = new byte[12];
                 enabledBytes[0] = 0x02;
                 approvedKey?.SetValue(appName, enabledBytes, RegistryValueKind.Binary);
+
+                // Also register an elevated ONLOGON task so requireAdministrator launches at Windows login without UAC block
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "schtasks.exe",
+                            Arguments = $"/Create /TN \"WinTaskBlocker\" /TR \"\\\"{exePath}\\\" {args}\" /SC ONLOGON /RL HIGHEST /F",
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                        });
+                        p?.WaitForExit(1500);
+                    }
+                    catch { }
+                });
             }
             else
             {
                 runKey?.DeleteValue(appName, throwOnMissingValue: false);
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "schtasks.exe",
+                            Arguments = "/Delete /TN \"WinTaskBlocker\" /F",
+                            CreateNoWindow = true,
+                            UseShellExecute = false,
+                            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                        });
+                        p?.WaitForExit(1500);
+                    }
+                    catch { }
+                });
             }
         }
         catch { }

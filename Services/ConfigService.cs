@@ -83,6 +83,13 @@ public class ConfigService
                         state.Preferences.AccentTheme = "WindowsBlue";
                     if (state.Preferences.GlassOpacity <= 0.05)
                         state.Preferences.GlassOpacity = 0.40;
+
+                    var adobeRule = state.ConditionalRules.FirstOrDefault(r =>
+                        string.Equals(r.Name, "Adobe Suite", StringComparison.OrdinalIgnoreCase));
+                    if (adobeRule != null && !adobeRule.TargetProcesses.Any(t => string.Equals(t, "CCLibrary.exe", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        adobeRule.TargetProcesses.Add("CCLibrary.exe");
+                    }
                     return state;
                 }
             }
@@ -172,6 +179,7 @@ public class ConfigService
                     "ccxprocess.exe",
                     "Adobe Desktop Service.exe",
                     "CoreSync.exe",
+                    "CCLibrary.exe",
                     "acrotray.exe"
                 }
             },

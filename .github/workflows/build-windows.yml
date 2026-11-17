@@ -37,18 +37,18 @@ jobs:
             -p:PublishReadyToRun=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=false `
-            -o publish/WinTaskBlocker_v2.0.1_Portable
-          Compress-Archive -Path publish/WinTaskBlocker_v2.0.1_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.1-win-x64-Portable.zip -Force
+            -o publish/WinTaskBlocker_v2.0.2_Portable
+          Compress-Archive -Path publish/WinTaskBlocker_v2.0.2_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.2-win-x64-Portable.zip -Force
 
       - name: Upload Portable Executable Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WinTaskBlocker-v2.0.1-Windows-x64-Portable
+          name: WinTaskBlocker-v2.0.2-Windows-x64-Portable
           path: |
-            publish/WinTaskBlocker_v2.0.1_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0.1_Portable/config.ini
-            publish/WinTaskBlocker_v2.0.1_Portable/Assets/app.ico
-            publish/WinTaskBlocker-v2.0.1-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.2_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.2_Portable/config.ini
+            publish/WinTaskBlocker_v2.0.2_Portable/Assets/app.ico
+            publish/WinTaskBlocker-v2.0.2-win-x64-Portable.zip
 
       - name: Publish GitHub Release on Tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -68,6 +68,6 @@ jobs:
             - 🌐 **Bilingual Interface (English & Spanish)**: Starts in **English** by default with an instant **flag toggle button** in the top titlebar (`EN` / `ES`).
             - 👤 **About & Credits**: Crafted by **Irving Ngr** 🇻🇪 • 100% compatible with legacy `config.ini` (`True|process.exe|count`).
           files: |
-            publish/WinTaskBlocker-v2.0.1-win-x64-Portable.zip
-            publish/WinTaskBlocker_v2.0.1_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0.1_Portable/config.ini
+            publish/WinTaskBlocker-v2.0.2-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.2_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.2_Portable/config.ini
