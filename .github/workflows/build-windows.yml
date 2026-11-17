@@ -8,6 +8,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -45,3 +48,25 @@ jobs:
             publish/WinTaskBlocker_v2.0.0_Portable/config.ini
             publish/WinTaskBlocker_v2.0.0_Portable/Assets/app.ico
             publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip
+
+      - name: Publish GitHub Release on Tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Win Task Blocker ${{ github.ref_name }} — Acrylic Glass Edition"
+          body: |
+            ## 🛡️ Win Task Blocker ${{ github.ref_name }} — Process & Startup Guardian
+
+            Modern, ultra-lightweight process blocker, conditional dependency guardian, and Windows startup manager for Windows 10 & Windows 11.
+
+            ### ✨ Highlights
+            - 🌐 **Bilingual Interface (English & Spanish)**: Starts in **English** by default with an instant **flag toggle button** in the top titlebar to switch between English (`EN`) and Spanish (`ES`).
+            - 💎 **Acrylic Crystal Finishes & Persistence**: Native Windows 10/11 DWM Acrylic blur with single rounded corners (no double border), sleek custom scrollbars, adjustable Crystal Opacity slider, and 4 persisted crystal themes: **Purple Nebula**, **Midnight Dark**, **Windows Blue**, and **Arctic Cyan**.
+            - ⚡ **Conditional Blocking & Dynamic Quick Profiles**: Block child/background processes (e.g. Adobe IPC/Crash services) when their main parent application is closed, or group processes into profiles that sync dynamically with the **Quick Profiles** sidebar.
+            - 🔍 **Multi-Tab Predictive Search**: Filters across **Blocked Tasks**, **Conditional Rules**, and **Windows Startup**, and automatically hides on tabs where search is not applicable.
+            - 🔒 **Single-Instance Guard**: Prevents duplicate instances and automatically brings the active window to the front when launched again.
+            - 👤 **About & Credits**: Crafted by **Irving Ngr** 🇻🇪 • 100% compatible with legacy `config.ini` (`True|process.exe|count`).
+          files: |
+            publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.0_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.0_Portable/config.ini
