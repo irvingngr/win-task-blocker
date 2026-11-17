@@ -1,0 +1,44 @@
+name: Build Windows Executable (TaskBlocker.exe)
+
+on:
+  push:
+    branches: [ "main", "master", "feat/**" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore WinTaskBlocker.csproj
+
+      - name: Publish Single-File Portable Executable (win-x64)
+        run: |
+          dotnet publish WinTaskBlocker.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -o publish/TaskBlocker_v2.0_Portable
+
+      - name: Upload Portable Executable Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaskBlocker-v2.0-Windows-x64-Portable
+          path: |
+            publish/TaskBlocker_v2.0_Portable/TaskBlocker.exe
+            publish/TaskBlocker_v2.0_Portable/config.ini
