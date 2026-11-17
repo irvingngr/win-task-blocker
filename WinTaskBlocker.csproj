@@ -11,7 +11,7 @@
     <AssemblyName>WinTaskBlocker</AssemblyName>
     <RootNamespace>WinTaskBlocker</RootNamespace>
     <Version>2.0.0</Version>
-    <Authors>irvingngr</Authors>
+    <Authors>irving ngr</Authors>
     <Product>Win Task Blocker</Product>
     <Description>Win Task Blocker — Bloqueador moderno de procesos, reglas condicionales y gestor de inicio para Windows 10/11 con interfaz Acrylic Glass.</Description>
     <ApplicationManifest>app.manifest</ApplicationManifest>
