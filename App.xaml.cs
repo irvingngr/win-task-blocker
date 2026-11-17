@@ -39,6 +39,22 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        bool isWindowsStartupLaunch = e.Args.Any(a =>
+            string.Equals(a, "--startup", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase));
+
+        // Show instant native splash screen when launched normally (not minimized at Windows boot)
+        SplashScreen? splash = null;
+        if (!isWindowsStartupLaunch)
+        {
+            try
+            {
+                splash = new SplashScreen("Assets/splash.png");
+                splash.Show(autoClose: false, topMost: true);
+            }
+            catch { }
+        }
+
         // First instance: create activation listener thread so any subsequent launch brings this window to foreground
         try
         {
@@ -54,7 +70,7 @@ public partial class App : System.Windows.Application
 
         base.OnStartup(e);
 
-        var mainWin = new MainWindow();
+        var mainWin = new MainWindow(isWindowsStartupLaunch, splash);
         MainWindow = mainWin;
         mainWin.Show();
     }

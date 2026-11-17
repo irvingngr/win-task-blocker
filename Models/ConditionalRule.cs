@@ -1,15 +1,16 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 using WinTaskBlocker.Services;
 
 namespace WinTaskBlocker.Models;
 
 public enum ConditionalRuleMode
 {
-    BlockWhenParentInactive,
-    BlockWhenParentActive,
-    ProfileAlwaysBlock
+    BlockWhenParentInactive = 0,
+    BlockWhenParentActive = 1,
+    ProfileAlwaysBlock = 2
 }
 
 public class ConditionalRule : INotifyPropertyChanged
@@ -17,7 +18,7 @@ public class ConditionalRule : INotifyPropertyChanged
     private string _id = Guid.NewGuid().ToString("N");
     private string _name = string.Empty;
     private string _description = string.Empty;
-    private string _badgeColor = "#A855F7";
+    private string _badgeColor = "#38BDF8";
     private bool _isEnabled = true;
     private bool _killOnParentExit = true;
     private ConditionalRuleMode _mode = ConditionalRuleMode.BlockWhenParentInactive;
@@ -75,6 +76,7 @@ public class ConditionalRule : INotifyPropertyChanged
     public ObservableCollection<string> AnchorProcesses { get; set; } = new();
     public ObservableCollection<string> TargetProcesses { get; set; } = new();
 
+    [JsonIgnore]
     public bool IsParentCurrentlyRunning
     {
         get => _isParentCurrentlyRunning;
@@ -93,12 +95,13 @@ public class ConditionalRule : INotifyPropertyChanged
         set { _totalBlockedByRule = value; OnPropertyChanged(); }
     }
 
+    [JsonIgnore]
     public string CurrentStateText
     {
         get
         {
             bool es = LocalizationService.Instance.IsSpanish;
-            if (!IsEnabled) return es ? "Inactivo" : "Disabled";
+            if (!IsEnabled) return es ? "Desactivado" : "Disabled";
 
             return Mode switch
             {
@@ -114,6 +117,7 @@ public class ConditionalRule : INotifyPropertyChanged
         }
     }
 
+    [JsonIgnore]
     public string AnchorListSummary
     {
         get
@@ -127,6 +131,7 @@ public class ConditionalRule : INotifyPropertyChanged
         }
     }
 
+    [JsonIgnore]
     public string TargetListSummary
     {
         get
@@ -140,6 +145,7 @@ public class ConditionalRule : INotifyPropertyChanged
         }
     }
 
+    [JsonIgnore]
     public string ModeDisplayName
     {
         get

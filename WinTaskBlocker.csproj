@@ -10,10 +10,10 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>WinTaskBlocker</AssemblyName>
     <RootNamespace>WinTaskBlocker</RootNamespace>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <Authors>irving ngr</Authors>
     <Product>Win Task Blocker</Product>
-    <Description>Win Task Blocker — Bloqueador moderno de procesos, reglas condicionales y gestor de inicio para Windows 10/11 con interfaz Acrylic Glass.</Description>
+    <Description>Win Task Blocker — Modern process blocker, conditional rules guardian, and startup manager for Windows 10/11 with Acrylic Glass UI.</Description>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\splash.png" />
     <Content Include="Assets\app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

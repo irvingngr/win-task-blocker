@@ -30,10 +30,12 @@ public class LocalizationService : INotifyPropertyChanged
         CurrentLanguage = IsSpanish ? "en" : "es";
     }
 
-    // Header & Window
-    public string AppSubtitle => IsSpanish ? "v2.0.0 Edición Cristal Acrílico" : "v2.0.0 Acrylic Glass Edition";
-    public string ProtectionActive => IsSpanish ? "Protección Activa" : "Protection Active";
-    public string EnginePaused => IsSpanish ? "Motor en Pausa" : "Engine Paused";
+    // Header & Window (Simplified status and engine button labels as requested)
+    public string AppSubtitle => IsSpanish ? "v2.0.1 Edición Cristal Acrílico" : "v2.0.1 Acrylic Glass Edition";
+    public string ProtectionActive => IsSpanish ? "Bloqueo Activo" : "Block Enabled";
+    public string EnginePaused => IsSpanish ? "Bloqueo Desactivado" : "Block Disabled";
+    public string PauseEngineBtn => IsSpanish ? "⏹ Detener" : "⏹ Stop";
+    public string StartEngineBtn => IsSpanish ? "▶ Iniciar" : "▶ Start";
     public string FlagTooltip => IsSpanish ? "Idioma: Español (Clic para cambiar a Inglés)" : "Language: English (Click to switch to Spanish)";
     public string MinTooltip => IsSpanish ? "Minimizar" : "Minimize";
     public string MaxTooltip => IsSpanish ? "Maximizar / Restaurar" : "Maximize / Restore";
@@ -68,8 +70,6 @@ public class LocalizationService : INotifyPropertyChanged
     public string BlockedViewSubtitle => IsSpanish
         ? "Intercepta procesos en tiempo real con íconos nativos, búsqueda predictiva y conteo."
         : "Intercepts processes in real time with native icons, predictive search, and block counters.";
-    public string PauseEngineBtn => IsSpanish ? "⏸ Pausar Motor" : "⏸ Pause Engine";
-    public string StartEngineBtn => IsSpanish ? "▶ Iniciar Motor" : "▶ Start Engine";
     public string AddTaskBtn => IsSpanish ? "＋ Agregar Tarea" : "＋ Add Task";
     public string QuickAddPlaceholder => IsSpanish
         ? "⚡ Escritura predictiva: escribe el nombre de un proceso (ej. adobe, chrome, anydesk.exe) y presiona Enter..."
@@ -138,20 +138,23 @@ public class LocalizationService : INotifyPropertyChanged
 
     // View 4: Preferences & Crystal Appearance
     public string PrefsTitle => IsSpanish ? "Preferencias del Sistema" : "System Preferences";
-    public string GeneralSection => IsSpanish ? "OPCIONES GENERALES" : "GENERAL OPTIONS";
+    public string GeneralSection => IsSpanish ? "OPCIONES GENERALES Y DE ARRANQUE" : "GENERAL & STARTUP OPTIONS";
     public string PrefLaunchStartup => IsSpanish
-        ? "Iniciar Win Task Blocker automáticamente con Windows"
-        : "Launch Win Task Blocker automatically at Windows startup";
+        ? "Ejecutar al iniciar Windows (Run on Windows startup)"
+        : "Run on Windows startup";
+    public string PrefStartMinimized => IsSpanish
+        ? "Iniciar minimizado en bandeja al arrancar Windows (y activar bloqueo automáticamente)"
+        : "Start minimized to tray on Windows startup (and auto-enable blocking)";
     public string PrefShowForeground => IsSpanish
-        ? "Mostrar ventana en primer plano al iniciar"
-        : "Show window in foreground when it starts";
+        ? "Mostrar ventana en primer plano al abrir manualmente"
+        : "Show window in foreground when launched manually";
     public string PrefMinimizeTray => IsSpanish
         ? "Minimizar a la bandeja del sistema (System Tray) al cerrar"
         : "Minimize to System Tray when closing window";
     public string EngineSection => IsSpanish ? "MOTOR DE TAREAS Y MONITOREO" : "TASK ENGINE & MONITORING";
     public string PrefStartMonitoring => IsSpanish
-        ? "Iniciar monitoreo automáticamente al abrir la aplicación"
-        : "Start monitoring automatically on application launch";
+        ? "Iniciar siempre con el bloqueo activado (incluso si se cerró en Stop)"
+        : "Always start with blocking enabled (even if previously stopped)";
     public string PrefShowNotification => IsSpanish
         ? "Mostrar notificación en bandeja cuando se bloquee un proceso"
         : "Show tray notification when a task is blocked";
@@ -175,12 +178,12 @@ public class LocalizationService : INotifyPropertyChanged
     // Crystal Appearance Card
     public string CrystalTitle => IsSpanish ? "✨ Personalización del Cristal Acrílico" : "✨ Acrylic Crystal Customization";
     public string CrystalSubtitle => IsSpanish
-        ? "Ajusta la opacidad del cristal y elige el acabado de color (se guarda automáticamente):"
-        : "Adjust crystal opacity and select your glass color finish (saved automatically):";
+        ? "Ajusta la opacidad del cristal y elige el acabado de color (cambia bordes, textos acentuados y fondo automáticamente):"
+        : "Adjust crystal opacity and select your glass finish (automatically updates borders, accent texts, and background):";
     public string CrystalOpacityLabel => IsSpanish ? "Opacidad del Cristal:" : "Crystal Opacity:";
+    public string ThemeWindowsBlue => IsSpanish ? "💠 Azul Windows" : "💠 Windows Blue";
     public string ThemePurpleNebula => IsSpanish ? "🔮 Nebulosa Púrpura" : "🔮 Purple Nebula";
     public string ThemeMidnightDark => IsSpanish ? "🌑 Cristal Oscuro" : "🌑 Midnight Dark";
-    public string ThemeWindowsBlue => IsSpanish ? "💠 Azul Windows" : "💠 Windows Blue";
     public string ThemeArcticCyan => IsSpanish ? "❄️ Cian Ártico" : "❄️ Arctic Cyan";
     public string ActivityFeedTitle => IsSpanish ? "Actividad Reciente en Tiempo Real" : "Real-Time Activity Log";
 
@@ -195,8 +198,8 @@ public class LocalizationService : INotifyPropertyChanged
     public string CancelBtn => IsSpanish ? "Cancelar" : "Cancel";
     public string ConfirmAddBtn => IsSpanish ? "＋ Agregar a Bloqueados" : "＋ Add to Blocked";
 
-    // About / Credits Card (inspired by AlienCockpit banner)
-    public string AboutHeaderTitle => "Win Task Blocker v2.0.0 — Process & Startup Guardian";
+    // About / Credits Card
+    public string AboutHeaderTitle => "Win Task Blocker v2.0.1 — Process & Startup Guardian";
     public string AboutBadgeText => IsSpanish
         ? "Optimizado para Windows 10 y Windows 11 (x64)"
         : "Optimized for Windows 10 & Windows 11 (x64)";
@@ -208,13 +211,13 @@ public class LocalizationService : INotifyPropertyChanged
         : "Disclaimer: This software is provided \"as is\" without warranty. The developer is not responsible for system instability resulting from blocking critical operating system processes.";
     public string CraftedByPrefix => IsSpanish ? "Creado por" : "Crafted by";
     public string PoweredBySuffix => IsSpanish
-        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.0"
-        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.0";
+        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.1"
+        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.1";
     public string CardVersionHeader => IsSpanish ? "CONTROL DE VERSIÓN" : "VERSION CONTROL";
-    public string CardVersionTitle => IsSpanish ? "v2.0.0 Estable" : "v2.0.0 Stable";
+    public string CardVersionTitle => IsSpanish ? "v2.0.1 Estable" : "v2.0.1 Stable";
     public string CardVersionDesc => IsSpanish
-        ? "Motor nativo .NET 8.0 WPF + Cristal Acrílico Win32 DWM"
-        : ".NET 8.0 Native WPF + Win32 DWM Acrylic Glass Engine";
+        ? "Motor nativo .NET 8.0 WPF + Arranque Rápido ReadyToRun + Cristal Acrílico"
+        : ".NET 8.0 Native WPF + ReadyToRun Fast Boot + Win32 DWM Acrylic Glass";
     public string CardAuthorHeader => IsSpanish ? "AUTOR Y DESARROLLADOR" : "DEVELOPER & AUTHOR";
     public string CardBilingualHeader => IsSpanish ? "SOPORTE BILINGÜE" : "BILINGUAL SUPPORT";
     public string CardBilingualDesc => IsSpanish
@@ -223,16 +226,16 @@ public class LocalizationService : INotifyPropertyChanged
 
     // System Tray Menu
     public string TrayOpenText => IsSpanish ? "Abrir Win Task Blocker" : "Open Win Task Blocker";
-    public string TrayPauseResumeText => IsSpanish ? "Pausar / Reanudar Protección" : "Pause / Resume Protection";
+    public string TrayPauseResumeText => IsSpanish ? "Iniciar / Detener Bloqueo" : "Start / Stop Blocking";
     public string TrayExitText => IsSpanish ? "Salir completamente" : "Exit Completely";
 
     // Footer
     public string FooterStatusRunning => IsSpanish
-        ? "Estado: Ejecutando motor de intercepción en tiempo real."
-        : "Status: Running real-time process interception engine.";
+        ? "Estado: Bloqueo habilitado (interceptando procesos en tiempo real)."
+        : "Status: Block Enabled (intercepting processes in real time).";
     public string FooterStatusPaused => IsSpanish
-        ? "Estado: Monitoreo en pausa."
-        : "Status: Monitoring paused.";
+        ? "Estado: Bloqueo desactivado (Detenido)."
+        : "Status: Block Disabled (Stopped).";
     public string FooterBlockedTotalPrefix => IsSpanish ? "Tareas Bloqueadas:" : "Blocked Tasks:";
 
     public event PropertyChangedEventHandler? PropertyChanged;

@@ -20,6 +20,9 @@ public partial class MainWindow : Window
     private readonly ProcessBlockerEngine _engine;
     private readonly LocalizationService _loc = LocalizationService.Instance;
 
+    private readonly bool _isWindowsStartupLaunch;
+    private SplashScreen? _splash;
+
     private readonly ObservableCollection<BlockedTaskItem> _blockedTasks = new();
     private readonly ObservableCollection<ConditionalRule> _conditionalRules = new();
     private readonly ObservableCollection<StartupEntry> _startupEntries = new();
@@ -35,32 +38,45 @@ public partial class MainWindow : Window
     private bool _isInitializing = true;
     private Forms.NotifyIcon? _trayIcon;
 
-    public MainWindow()
+    public MainWindow(bool isWindowsStartupLaunch = false, SplashScreen? splash = null)
     {
+        _isWindowsStartupLaunch = isWindowsStartupLaunch;
+        _splash = splash;
+
         InitializeComponent();
         _engine = new ProcessBlockerEngine(_configService.LogFilePath);
         _engine.ProcessBlocked += OnProcessBlocked;
         _engine.CountsChanged += OnEngineCountsChanged;
         _loc.LanguageChanged += OnLanguageChanged;
+
+        // If launched from Windows Startup and minimized mode is requested, minimize before showing
+        if (_isWindowsStartupLaunch)
+        {
+            ShowInTaskbar = false;
+            WindowState = WindowState.Minimized;
+        }
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         _isInitializing = true;
 
-        // 1. Load persisted configuration (defaults to English "en")
+        // 1. Load persisted configuration (defaults to English "en", 40% WindowsBlue)
         _persistedState = _configService.LoadExtendedState();
         _loc.CurrentLanguage = string.IsNullOrWhiteSpace(_persistedState.Preferences.Language)
             ? "en"
             : _persistedState.Preferences.Language;
         UpdateFlagVisual();
 
-        // 2. Load tasks and conditional rules
+        // 2. Load tasks and conditional rules (fast non-blocking badge icons first)
         foreach (var item in _configService.LoadBlockedTasks())
             _blockedTasks.Add(item);
 
         foreach (var rule in _persistedState.ConditionalRules)
             _conditionalRules.Add(rule);
+
+        // Resolve native Win32 .exe icons asynchronously in background so cold boot is instant
+        IconExtractorService.ResolveIconsInBackgroundAsync(_blockedTasks, Dispatcher);
 
         // 3. Setup filterable CollectionViews for all 3 searchable tabs
         _blockedTasksView = CollectionViewSource.GetDefaultView(_blockedTasks);
@@ -73,40 +89,69 @@ public partial class MainWindow : Window
         if (_conditionalRules.Count > 0)
             ConditionalRulesListBox.SelectedIndex = 0;
 
-        RefreshStartupEntriesList();
+        // Load Windows startup entries asynchronously after initial render
         _startupEntriesView = CollectionViewSource.GetDefaultView(_startupEntries);
         _startupEntriesView.Filter = FilterStartupEntryItem;
         StartupItemsListBox.ItemsSource = _startupEntriesView;
+        _ = Dispatcher.InvokeAsync(RefreshStartupEntriesList, System.Windows.Threading.DispatcherPriority.Background);
 
         // 4. Build dynamic Quick Profiles in sidebar
         QuickProfilesItemsControl.ItemsSource = _quickProfiles;
         RebuildQuickProfilesSidebar();
 
-        // 5. Bind preferences & apply saved Crystal Opacity + Crystal Theme
+        // 5. Bind preferences & apply saved Crystal Opacity + Crystal Theme (and dynamic accent colors)
         BindPreferencesToUi();
         ApplyCrystalThemeAndOpacity(_persistedState.Preferences.AccentTheme, _persistedState.Preferences.GlassOpacity, saveNow: false);
 
         SetupSystemTray();
 
-        // 6. Start Blocker Engine
-        _engine.Configure(_blockedTasks, _conditionalRules, _persistedState.Preferences);
-        if (_persistedState.Preferences.StartMonitoringOnAppStart)
+        // Ensure Windows Startup registration is synced with preferences
+        if (_persistedState.Preferences.LaunchAtWindowsStartup)
         {
-            _engine.Start();
+            StartupManagerService.SetSelfStartup(true, _persistedState.Preferences.StartMinimizedOnWindowsStartup);
         }
+
+        // 6. Start Blocker Engine — Always start blocking on launch (even if previously stopped)
+        _persistedState.Preferences.StartMonitoringOnAppStart = true;
+        PrefStartMonitoring.IsChecked = true;
+        _engine.Configure(_blockedTasks, _conditionalRules, _persistedState.Preferences);
+        _engine.Start();
 
         _isInitializing = false;
         UpdateEngineStatusUi();
         UpdateCountersUi();
 
         string initMsg = _loc.IsSpanish
-            ? $"[{DateTime.Now:HH:mm:ss}] Sistema iniciado ({_blockedTasks.Count} tareas, {_conditionalRules.Count} reglas condicionales)."
-            : $"[{DateTime.Now:HH:mm:ss}] Engine initialized ({_blockedTasks.Count} tasks, {_conditionalRules.Count} conditional rules).";
+            ? $"[{DateTime.Now:HH:mm:ss}] Bloqueo activo ({_blockedTasks.Count} tareas, {_conditionalRules.Count} perfiles condicionales)."
+            : $"[{DateTime.Now:HH:mm:ss}] Block enabled ({_blockedTasks.Count} tasks, {_conditionalRules.Count} conditional profiles).";
         ActivityFeedListBox.Items.Insert(0, initMsg);
+
+        // Close splash screen smoothly now that main UI is ready
+        try
+        {
+            _splash?.Close(TimeSpan.FromMilliseconds(220));
+            _splash = null;
+        }
+        catch { }
+
+        // Handle minimized-to-tray on Windows Startup or user preference
+        bool startMinimized = (_isWindowsStartupLaunch && _persistedState.Preferences.StartMinimizedOnWindowsStartup) ||
+                              (!_persistedState.Preferences.ShowInForegroundOnStart && _isWindowsStartupLaunch);
+        if (startMinimized)
+        {
+            WindowState = WindowState.Minimized;
+            ShowInTaskbar = false;
+            Hide();
+        }
+        else
+        {
+            ShowInTaskbar = true;
+        }
     }
 
     public void BringToFrontFromSecondInstance()
     {
+        ShowInTaskbar = true;
         Show();
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
@@ -170,7 +215,7 @@ public partial class MainWindow : Window
                 {
                     Name = rule.Name,
                     FilterKey = rule.Name,
-                    DotColor = string.IsNullOrWhiteSpace(rule.BadgeColor) ? "#A855F7" : rule.BadgeColor
+                    DotColor = string.IsNullOrWhiteSpace(rule.BadgeColor) ? "#38BDF8" : rule.BadgeColor
                 });
             }
         }
@@ -317,6 +362,7 @@ public partial class MainWindow : Window
             EngineStatusHeaderText.Text = _loc.ProtectionActive;
             EngineStatusDot.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 222, 128));
             HeaderEngineBadge.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(45, 34, 197, 94));
+            HeaderEngineBadge.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(110, 34, 197, 94));
             StartStopEngineBtn.Content = _loc.PauseEngineBtn;
             FooterStatusText.Text = _loc.FooterStatusRunning;
         }
@@ -325,6 +371,7 @@ public partial class MainWindow : Window
             EngineStatusHeaderText.Text = _loc.EnginePaused;
             EngineStatusDot.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));
             HeaderEngineBadge.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(45, 245, 158, 11));
+            HeaderEngineBadge.BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(110, 245, 158, 11));
             StartStopEngineBtn.Content = _loc.StartEngineBtn;
             FooterStatusText.Text = _loc.FooterStatusPaused;
         }
@@ -411,7 +458,6 @@ public partial class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(_activeProfileFilter))
         {
-            // Match either direct ProfileGroup OR if the process belongs to a matching ConditionalRule's TargetProcesses
             bool matchesGroup = string.Equals(item.ProfileGroup, _activeProfileFilter, StringComparison.OrdinalIgnoreCase);
             bool matchesRuleTargets = _conditionalRules.Any(r =>
                 string.Equals(r.Name, _activeProfileFilter, StringComparison.OrdinalIgnoreCase) &&
@@ -545,7 +591,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        string resolvedPath = explicitPath ?? (File.Exists(nameOrPath) ? nameOrPath : IconExtractorService.TryResolveExecutablePath(exeName) ?? string.Empty);
+        string resolvedPath = explicitPath ?? (File.Exists(nameOrPath) ? nameOrPath : string.Empty);
         var newItem = new BlockedTaskItem
         {
             IsEnabled = true,
@@ -554,10 +600,13 @@ public partial class MainWindow : Window
             ExecutablePath = resolvedPath,
             ProfileGroup = BlockedTaskItem.InferProfileGroup(exeName),
             Description = !string.IsNullOrWhiteSpace(description) ? description : BlockedTaskItem.InferDefaultDescription(exeName),
-            Icon = IconExtractorService.GetIconForProcess(exeName, resolvedPath)
+            Icon = !string.IsNullOrWhiteSpace(resolvedPath)
+                ? IconExtractorService.GetIconForProcess(exeName, resolvedPath)
+                : IconExtractorService.GetFastBadgeOrCachedIcon(exeName)
         };
 
         _blockedTasks.Insert(0, newItem);
+        IconExtractorService.ResolveIconsInBackgroundAsync(new[] { newItem }, Dispatcher);
         RebuildQuickProfilesSidebar();
         SaveAllConfig();
         UpdateCountersUi();
@@ -633,6 +682,7 @@ public partial class MainWindow : Window
             _blockedTasks.Clear();
             foreach (var item in imported)
                 _blockedTasks.Add(item);
+            IconExtractorService.ResolveIconsInBackgroundAsync(_blockedTasks, Dispatcher);
             RebuildQuickProfilesSidebar();
             SaveAllConfig();
             UpdateCountersUi();
@@ -799,7 +849,6 @@ public partial class MainWindow : Window
         rule.RefreshSummaries();
         _conditionalRulesView?.Refresh();
 
-        // Immediately sync Quick Profiles in the left sidebar!
         RebuildQuickProfilesSidebar();
         SaveAllConfig();
 
@@ -820,7 +869,6 @@ public partial class MainWindow : Window
             if (string.Equals(_activeProfileFilter, deletedName, StringComparison.OrdinalIgnoreCase))
                 _activeProfileFilter = string.Empty;
 
-            // Immediately sync Quick Profiles in the left sidebar!
             RebuildQuickProfilesSidebar();
             SaveAllConfig();
             UpdateCountersUi();
@@ -891,6 +939,7 @@ public partial class MainWindow : Window
     {
         var p = _persistedState.Preferences;
         PrefLaunchStartup.IsChecked = p.LaunchAtWindowsStartup;
+        PrefStartMinimized.IsChecked = p.StartMinimizedOnWindowsStartup;
         PrefShowForeground.IsChecked = p.ShowInForegroundOnStart;
         PrefMinimizeTray.IsChecked = p.MinimizeToTrayOnClose;
         PrefStartMonitoring.IsChecked = p.StartMonitoringOnAppStart;
@@ -901,7 +950,7 @@ public partial class MainWindow : Window
         PrefWarnLogSize.IsChecked = p.WarnIfLogExceedsSize;
         PrefMaxLogMbBox.Text = p.MaxLogSizeMb.ToString("F1");
         PrefLogEditorBox.Text = p.DefaultLogEditor;
-        GlassOpacitySlider.Value = Math.Clamp(p.GlassOpacity, 0.30, 0.95);
+        GlassOpacitySlider.Value = Math.Clamp(p.GlassOpacity, 0.15, 0.95);
         GlassOpacityPercentText.Text = $"{(int)Math.Round(GlassOpacitySlider.Value * 100)}%";
     }
 
@@ -909,6 +958,7 @@ public partial class MainWindow : Window
     {
         var p = _persistedState.Preferences;
         p.LaunchAtWindowsStartup = PrefLaunchStartup.IsChecked == true;
+        p.StartMinimizedOnWindowsStartup = PrefStartMinimized.IsChecked == true;
         p.ShowInForegroundOnStart = PrefShowForeground.IsChecked == true;
         p.MinimizeToTrayOnClose = PrefMinimizeTray.IsChecked == true;
         p.StartMonitoringOnAppStart = PrefStartMonitoring.IsChecked == true;
@@ -922,7 +972,7 @@ public partial class MainWindow : Window
         p.DefaultLogEditor = PrefLogEditorBox.Text.Trim();
         p.GlassOpacity = GlassOpacitySlider.Value;
 
-        StartupManagerService.SetSelfStartup(p.LaunchAtWindowsStartup);
+        StartupManagerService.SetSelfStartup(p.LaunchAtWindowsStartup, p.StartMinimizedOnWindowsStartup);
         _engine.Configure(_blockedTasks, _conditionalRules, p);
         SaveAllConfig();
         FooterStatusText.Text = _loc.IsSpanish
@@ -967,25 +1017,54 @@ public partial class MainWindow : Window
 
     private void ApplyCrystalThemeAndOpacity(string themeName, double opacity, bool saveNow)
     {
-        opacity = Math.Clamp(opacity, 0.30, 0.95);
-        byte a = (byte)Math.Clamp(opacity * 255, 65, 242);
+        opacity = Math.Clamp(opacity, 0.15, 0.95);
+        byte a = (byte)Math.Clamp(opacity * 255, 38, 242);
 
         uint tintBgr;
+        System.Windows.Media.Color primaryAccent;
+        System.Windows.Media.Color strongAccent;
+        System.Windows.Media.Color borderAccent;
+        System.Windows.Media.Color hoverBorderAccent;
+        System.Windows.Media.Color softBgAccent;
+        System.Windows.Media.Color rowSelectBgAccent;
+        System.Windows.Media.Color btnGradStart;
+        System.Windows.Media.Color btnGradEnd;
+        System.Windows.Media.Color modalBg;
+
         switch (themeName)
         {
+            case "PurpleNebula":
+                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 59, 29, 94);
+                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 43, 25, 77);
+                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 21, 25, 54);
+                tintBgr = 0x36192B;
+
+                primaryAccent = System.Windows.Media.Color.FromRgb(192, 132, 252);     // #C084FC
+                strongAccent = System.Windows.Media.Color.FromRgb(147, 51, 234);       // #9333EA
+                borderAccent = System.Windows.Media.Color.FromArgb(115, 192, 132, 252);
+                hoverBorderAccent = System.Windows.Media.Color.FromArgb(205, 216, 180, 254);
+                softBgAccent = System.Windows.Media.Color.FromArgb(56, 168, 85, 247);
+                rowSelectBgAccent = System.Windows.Media.Color.FromArgb(64, 168, 85, 247);
+                btnGradStart = System.Windows.Media.Color.FromRgb(147, 51, 234);       // #9333EA
+                btnGradEnd = System.Windows.Media.Color.FromRgb(79, 70, 229);          // #4F46E5
+                modalBg = System.Windows.Media.Color.FromArgb(242, 30, 22, 56);
+                break;
+
             case "MidnightDark":
                 GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 18, 22, 34);
                 GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 14, 18, 28);
                 GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 10, 13, 21);
                 tintBgr = 0x1E1410;
-                break;
 
-            case "WindowsBlue":
-                // Authentic Windows 11 Sapphire / Fluent Blue Acrylic Glass
-                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 16, 48, 104);
-                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 14, 38, 86);
-                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 11, 25, 58);
-                tintBgr = 0x56260E;
+                primaryAccent = System.Windows.Media.Color.FromRgb(148, 163, 184);     // #94A3B8 Slate Silver
+                strongAccent = System.Windows.Media.Color.FromRgb(71, 85, 105);        // #475569
+                borderAccent = System.Windows.Media.Color.FromArgb(115, 148, 163, 184);
+                hoverBorderAccent = System.Windows.Media.Color.FromArgb(210, 203, 213, 225);
+                softBgAccent = System.Windows.Media.Color.FromArgb(56, 100, 116, 139);
+                rowSelectBgAccent = System.Windows.Media.Color.FromArgb(68, 71, 85, 105);
+                btnGradStart = System.Windows.Media.Color.FromRgb(71, 85, 105);        // #475569
+                btnGradEnd = System.Windows.Media.Color.FromRgb(30, 41, 59);           // #1E293B
+                modalBg = System.Windows.Media.Color.FromArgb(242, 15, 20, 32);
                 break;
 
             case "ArcticCyan":
@@ -993,22 +1072,53 @@ public partial class MainWindow : Window
                 GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 15, 40, 64);
                 GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 11, 22, 44);
                 tintBgr = 0x4E3A0E;
+
+                primaryAccent = System.Windows.Media.Color.FromRgb(34, 211, 238);      // #22D3EE Cyan
+                strongAccent = System.Windows.Media.Color.FromRgb(8, 145, 178);        // #0891B2
+                borderAccent = System.Windows.Media.Color.FromArgb(115, 34, 211, 238);
+                hoverBorderAccent = System.Windows.Media.Color.FromArgb(210, 103, 232, 249);
+                softBgAccent = System.Windows.Media.Color.FromArgb(56, 6, 182, 212);
+                rowSelectBgAccent = System.Windows.Media.Color.FromArgb(64, 8, 145, 178);
+                btnGradStart = System.Windows.Media.Color.FromRgb(8, 145, 178);        // #0891B2
+                btnGradEnd = System.Windows.Media.Color.FromRgb(15, 118, 110);         // #0F766E
+                modalBg = System.Windows.Media.Color.FromArgb(242, 11, 31, 46);
                 break;
 
-            default: // "PurpleNebula"
-                themeName = "PurpleNebula";
-                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 59, 29, 94);
-                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 43, 25, 77);
-                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 21, 25, 54);
-                tintBgr = 0x36192B;
+            default: // "WindowsBlue" (Default 40% Windows Blue Crystal)
+                themeName = "WindowsBlue";
+                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 16, 48, 104);
+                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 14, 38, 86);
+                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 11, 25, 58);
+                tintBgr = 0x56260E;
+
+                primaryAccent = System.Windows.Media.Color.FromRgb(56, 189, 248);      // #38BDF8 Windows Sky Blue
+                strongAccent = System.Windows.Media.Color.FromRgb(2, 132, 199);        // #0284C7
+                borderAccent = System.Windows.Media.Color.FromArgb(115, 56, 189, 248);
+                hoverBorderAccent = System.Windows.Media.Color.FromArgb(215, 125, 211, 252);
+                softBgAccent = System.Windows.Media.Color.FromArgb(56, 56, 189, 248);
+                rowSelectBgAccent = System.Windows.Media.Color.FromArgb(64, 2, 132, 199);
+                btnGradStart = System.Windows.Media.Color.FromRgb(2, 132, 199);        // #0284C7
+                btnGradEnd = System.Windows.Media.Color.FromRgb(29, 78, 216);          // #1D4ED8
+                modalBg = System.Windows.Media.Color.FromArgb(242, 12, 25, 56);
                 break;
         }
 
-        // Highlight active theme button border
-        HighlightThemeButton(BtnThemeNebula, themeName == "PurpleNebula");
-        HighlightThemeButton(BtnThemeDark, themeName == "MidnightDark");
-        HighlightThemeButton(BtnThemeWindowsBlue, themeName == "WindowsBlue");
-        HighlightThemeButton(BtnThemeCyan, themeName == "ArcticCyan");
+        // Update Application-wide dynamic accent brushes so all buttons, borders, badges & texts match the crystal finish
+        var res = System.Windows.Application.Current.Resources;
+        res["ThemeAccentPrimaryBrush"] = new SolidColorBrush(primaryAccent);
+        res["ThemeAccentStrongBrush"] = new SolidColorBrush(strongAccent);
+        res["ThemeAccentBorderBrush"] = new SolidColorBrush(borderAccent);
+        res["ThemeAccentHoverBorderBrush"] = new SolidColorBrush(hoverBorderAccent);
+        res["ThemeAccentSoftBgBrush"] = new SolidColorBrush(softBgAccent);
+        res["ThemeAccentRowSelectBgBrush"] = new SolidColorBrush(rowSelectBgAccent);
+        res["ThemeModalBgBrush"] = new SolidColorBrush(modalBg);
+        res["ThemeAccentButtonFillBrush"] = new LinearGradientBrush(btnGradStart, btnGradEnd, new System.Windows.Point(0, 0), new System.Windows.Point(1, 1));
+
+        // Highlight active theme button border with the current theme's accent color
+        HighlightThemeButton(BtnThemeWindowsBlue, themeName == "WindowsBlue", primaryAccent, borderAccent);
+        HighlightThemeButton(BtnThemeNebula, themeName == "PurpleNebula", primaryAccent, borderAccent);
+        HighlightThemeButton(BtnThemeDark, themeName == "MidnightDark", primaryAccent, borderAccent);
+        HighlightThemeButton(BtnThemeCyan, themeName == "ArcticCyan", primaryAccent, borderAccent);
 
         // Update native Windows 10/11 DWM Acrylic Blur behind
         AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: a, tintBgr: tintBgr);
@@ -1022,13 +1132,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private static void HighlightThemeButton(System.Windows.Controls.Button? btn, bool isActive)
+    private static void HighlightThemeButton(
+        System.Windows.Controls.Button? btn,
+        bool isActive,
+        System.Windows.Media.Color activeColor,
+        System.Windows.Media.Color inactiveBorderColor)
     {
         if (btn == null) return;
         btn.BorderBrush = isActive
-            ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 132, 252))
-            : new SolidColorBrush(System.Windows.Media.Color.FromArgb(64, 255, 255, 255));
-        btn.BorderThickness = isActive ? new Thickness(1.6) : new Thickness(1);
+            ? new SolidColorBrush(activeColor)
+            : new SolidColorBrush(inactiveBorderColor);
+        btn.BorderThickness = isActive ? new Thickness(1.8) : new Thickness(1);
     }
 
     private void SaveAllConfig()

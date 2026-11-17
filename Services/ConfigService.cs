@@ -40,8 +40,8 @@ public class ConfigService
                 var item = BlockedTaskItem.FromLegacyIniLine(rawLine);
                 if (item != null)
                 {
-                    item.ExecutablePath = IconExtractorService.TryResolveExecutablePath(item.ProcessName) ?? string.Empty;
-                    item.Icon = IconExtractorService.GetIconForProcess(item.ProcessName, item.ExecutablePath);
+                    // Instant badge assignment on startup; native .exe icons resolve asynchronously in background
+                    item.Icon = IconExtractorService.GetFastBadgeOrCachedIcon(item.ProcessName);
                     list.Add(item);
                 }
             }
@@ -80,7 +80,9 @@ public class ConfigService
                     if (string.IsNullOrWhiteSpace(state.Preferences.Language))
                         state.Preferences.Language = "en";
                     if (string.IsNullOrWhiteSpace(state.Preferences.AccentTheme))
-                        state.Preferences.AccentTheme = "PurpleNebula";
+                        state.Preferences.AccentTheme = "WindowsBlue";
+                    if (state.Preferences.GlassOpacity <= 0.05)
+                        state.Preferences.GlassOpacity = 0.40;
                     return state;
                 }
             }
@@ -89,7 +91,17 @@ public class ConfigService
 
         var defaultState = new AppPersistedState
         {
-            Preferences = new AppPreferences(),
+            Preferences = new AppPreferences
+            {
+                Language = "en",
+                GlassOpacity = 0.40,
+                AccentTheme = "WindowsBlue",
+                LaunchAtWindowsStartup = true,
+                StartMinimizedOnWindowsStartup = true,
+                ShowInForegroundOnStart = false,
+                MinimizeToTrayOnClose = true,
+                StartMonitoringOnAppStart = true
+            },
             ConditionalRules = GetDefaultConditionalRules()
         };
         SaveExtendedState(defaultState);
@@ -113,18 +125,7 @@ public class ConfigService
         [
             "True|adobe crash processor.exe|2",
             "True|adobeipcbroker.exe|23",
-            "True|ccxprocess.exe|4",
-            "True|anydesk.exe|0",
-            "False|cmd.exe|0",
-            "True|cscript.exe|0",
-            "True|devenv.exe|0",
-            "True|gamingapp.exe|0",
-            "True|gaminghotkey_service.exe|0",
-            "True|java.exe|0",
-            "True|lghub.exe|0",
-            "True|logiregistryservice.exe|0",
-            "True|logmein.exe|0",
-            "True|logmeinavserver.exe|0"
+            "True|ccxprocess.exe|4"
         ];
 
         var items = new List<BlockedTaskItem>();
@@ -133,20 +134,23 @@ public class ConfigService
             var parsed = BlockedTaskItem.FromLegacyIniLine(line);
             if (parsed != null)
             {
-                parsed.ExecutablePath = IconExtractorService.TryResolveExecutablePath(parsed.ProcessName) ?? string.Empty;
-                parsed.Icon = IconExtractorService.GetIconForProcess(parsed.ProcessName, parsed.ExecutablePath);
+                parsed.Icon = IconExtractorService.GetFastBadgeOrCachedIcon(parsed.ProcessName);
                 items.Add(parsed);
             }
         }
         return items;
     }
 
+    /// <summary>
+    /// Default profiles as requested: Adobe Suite and Gaming / Focus Mode.
+    /// </summary>
     public static List<ConditionalRule> GetDefaultConditionalRules()
     {
         return
         [
             new ConditionalRule
             {
+                Id = "582f29bae9c444fb87000c4808e4fc16",
                 Name = "Adobe Suite",
                 Description = "Blocks Adobe background brokers and crash reporters when Photoshop, Premiere, Illustrator, or After Effects are closed.",
                 BadgeColor = "#EF4444",
@@ -173,42 +177,10 @@ public class ConfigService
             },
             new ConditionalRule
             {
-                Name = "Logitech G HUB",
-                Description = "Blocks Logitech background services when you don't need peripheral configuration running.",
-                BadgeColor = "#06B6D4",
-                IsEnabled = true,
-                KillOnParentExit = true,
-                Mode = ConditionalRuleMode.ProfileAlwaysBlock,
-                AnchorProcesses = new ObservableCollection<string>(),
-                TargetProcesses = new ObservableCollection<string>
-                {
-                    "lghub.exe",
-                    "lghub_agent.exe",
-                    "lghub_updater.exe",
-                    "logiregistryservice.exe"
-                }
-            },
-            new ConditionalRule
-            {
-                Name = "Remote Access",
-                Description = "Prevents AnyDesk and LogMeIn background services from staying resident in memory.",
-                BadgeColor = "#F97316",
-                IsEnabled = true,
-                KillOnParentExit = true,
-                Mode = ConditionalRuleMode.ProfileAlwaysBlock,
-                AnchorProcesses = new ObservableCollection<string>(),
-                TargetProcesses = new ObservableCollection<string>
-                {
-                    "anydesk.exe",
-                    "logmein.exe",
-                    "logmeinavserver.exe"
-                }
-            },
-            new ConditionalRule
-            {
+                Id = "f82399513f4449f197a3f04195066d8f",
                 Name = "Gaming / Focus Mode",
                 Description = "Blocks heavy IDE or background processes only while a game is actively running.",
-                BadgeColor = "#A855F7",
+                BadgeColor = "#38BDF8",
                 IsEnabled = false,
                 KillOnParentExit = false,
                 Mode = ConditionalRuleMode.BlockWhenParentActive,

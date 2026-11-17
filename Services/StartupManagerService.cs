@@ -250,7 +250,7 @@ public class StartupManagerService
         }
     }
 
-    public static void SetSelfStartup(bool enable)
+    public static void SetSelfStartup(bool enable, bool startMinimized = true)
     {
         try
         {
@@ -260,9 +260,19 @@ public class StartupManagerService
 
             using var runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true);
             if (enable)
-                runKey?.SetValue(appName, $"\"{exePath}\" --startup", RegistryValueKind.String);
+            {
+                string args = startMinimized ? "--startup --minimized" : "--startup";
+                runKey?.SetValue(appName, $"\"{exePath}\" {args}", RegistryValueKind.String);
+
+                using var approvedKey = Registry.CurrentUser.CreateSubKey(ApprovedRunKeyPath, writable: true);
+                byte[] enabledBytes = new byte[12];
+                enabledBytes[0] = 0x02;
+                approvedKey?.SetValue(appName, enabledBytes, RegistryValueKind.Binary);
+            }
             else
+            {
                 runKey?.DeleteValue(appName, throwOnMissingValue: false);
+            }
         }
         catch { }
     }

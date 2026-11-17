@@ -25,14 +25,15 @@
     <!-- Single Rounded Glass Border matching Windows 11 native 8px DWM corner radius (No double corner border) -->
     <Border x:Name="RootGlassBorder"
             CornerRadius="8"
-            BorderBrush="#42FFFFFF"
+            BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
             BorderThickness="1"
             ClipToBounds="True">
         <Border.Background>
+            <!-- Default: 40% Opacity Windows Blue Crystal -->
             <LinearGradientBrush x:Name="RootGlassGradient" StartPoint="0,0" EndPoint="1,1">
-                <GradientStop x:Name="GradStop1" Color="#C23B1D5E" Offset="0.0"/>
-                <GradientStop x:Name="GradStop2" Color="#BD2B194D" Offset="0.48"/>
-                <GradientStop x:Name="GradStop3" Color="#C4151936" Offset="1.0"/>
+                <GradientStop x:Name="GradStop1" Color="#66103068" Offset="0.0"/>
+                <GradientStop x:Name="GradStop2" Color="#660E2656" Offset="0.48"/>
+                <GradientStop x:Name="GradStop3" Color="#660B193A" Offset="1.0"/>
             </LinearGradientBrush>
         </Border.Background>
 
@@ -78,7 +79,7 @@
                             Height="34"
                             CornerRadius="17"
                             Background="#26FFFFFF"
-                            BorderBrush="#42FFFFFF"
+                            BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                             BorderThickness="1"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Center"
@@ -102,7 +103,7 @@
                                      Background="Transparent"
                                      BorderThickness="0"
                                      Foreground="White"
-                                     CaretBrush="#C084FC"
+                                     CaretBrush="{DynamicResource ThemeAccentPrimaryBrush}"
                                      VerticalContentAlignment="Center"
                                      FontSize="12.5"
                                      TextChanged="GlobalSearchBox_TextChanged"/>
@@ -168,7 +169,7 @@
                             </StackPanel>
                         </Button>
 
-                        <!-- Protection Status Pill -->
+                        <!-- Protection Status Pill (Block Enabled / Block Disabled) -->
                         <Border x:Name="HeaderEngineBadge"
                                 Background="#2822C55E"
                                 BorderBrush="#6622C55E"
@@ -220,7 +221,7 @@
                                          IsChecked="True"
                                          Checked="NavButton_Checked">
                                 <StackPanel Orientation="Horizontal">
-                                    <Ellipse Width="8" Height="8" Fill="#A855F7" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <Ellipse Width="8" Height="8" Fill="{DynamicResource ThemeAccentPrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding NavBlockedTasks}"/>
                                 </StackPanel>
                             </RadioButton>
@@ -301,7 +302,7 @@
                         <!-- Session Summary Card at Bottom of Sidebar -->
                         <Border Grid.Row="2"
                                 Background="#24FFFFFF"
-                                BorderBrush="#38FFFFFF"
+                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="11"
                                 Padding="12,9">
@@ -317,7 +318,7 @@
                                         <TextBlock Text="{Binding ActiveRulesLabel}" Foreground="#CBD5E1" FontSize="10.5"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
-                                        <TextBlock x:Name="SidebarTotalBlockedCount" Text="29" Foreground="#C084FC" FontSize="18" FontWeight="Bold"/>
+                                        <TextBlock x:Name="SidebarTotalBlockedCount" Text="29" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="18" FontWeight="Bold"/>
                                         <TextBlock Text="{Binding BlockedCountLabel}" Foreground="#CBD5E1" FontSize="10.5"/>
                                     </StackPanel>
                                 </Grid>
@@ -372,7 +373,7 @@
                         <!-- Quick Predictive Add Bar + Action Buttons -->
                         <Border Grid.Row="1"
                                 Background="#22FFFFFF"
-                                BorderBrush="#36FFFFFF"
+                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="11"
                                 Padding="11,9"
@@ -403,8 +404,8 @@
                                            Placement="Bottom"
                                            StaysOpen="False"
                                            AllowsTransparency="True">
-                                        <Border Background="#F21E1B4B"
-                                                BorderBrush="#66C084FC"
+                                        <Border Background="{DynamicResource ThemeModalBgBrush}"
+                                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 Padding="4"
@@ -507,11 +508,11 @@
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter TargetName="rowBd" Property="Background" Value="#28FFFFFF"/>
-                                                                <Setter TargetName="rowBd" Property="BorderBrush" Value="#48FFFFFF"/>
+                                                                <Setter TargetName="rowBd" Property="BorderBrush" Value="{DynamicResource ThemeAccentBorderBrush}"/>
                                                             </Trigger>
                                                             <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="rowBd" Property="Background" Value="#38A855F7"/>
-                                                                <Setter TargetName="rowBd" Property="BorderBrush" Value="#80C084FC"/>
+                                                                <Setter TargetName="rowBd" Property="Background" Value="{DynamicResource ThemeAccentRowSelectBgBrush}"/>
+                                                                <Setter TargetName="rowBd" Property="BorderBrush" Value="{DynamicResource ThemeAccentHoverBorderBrush}"/>
                                                             </Trigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
@@ -569,8 +570,8 @@
                                                 </Border>
 
                                                 <Border Grid.Column="5"
-                                                        Background="#30A855F7"
-                                                        BorderBrush="#66C084FC"
+                                                        Background="{DynamicResource ThemeAccentSoftBgBrush}"
+                                                        BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                                         BorderThickness="1"
                                                         CornerRadius="10"
                                                         Padding="10,2.5"
@@ -656,10 +657,11 @@
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
                                                                 <Setter TargetName="cardBd" Property="Background" Value="#2CFFFFFF"/>
+                                                                <Setter TargetName="cardBd" Property="BorderBrush" Value="{DynamicResource ThemeAccentBorderBrush}"/>
                                                             </Trigger>
                                                             <Trigger Property="IsSelected" Value="True">
-                                                                <Setter TargetName="cardBd" Property="Background" Value="#38A855F7"/>
-                                                                <Setter TargetName="cardBd" Property="BorderBrush" Value="#90C084FC"/>
+                                                                <Setter TargetName="cardBd" Property="Background" Value="{DynamicResource ThemeAccentRowSelectBgBrush}"/>
+                                                                <Setter TargetName="cardBd" Property="BorderBrush" Value="{DynamicResource ThemeAccentHoverBorderBrush}"/>
                                                             </Trigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
@@ -699,7 +701,7 @@
 
                                                 <Border Background="#1A000000" CornerRadius="8" Padding="10,6" Margin="26,0,0,0">
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding ModeDisplayName}" Foreground="#C084FC" FontSize="11" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding ModeDisplayName}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="11" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding AnchorListSummary}" Foreground="#E2E8F0" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding TargetListSummary}" Foreground="#FCA5A5" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
@@ -713,7 +715,7 @@
                             <!-- Right: Detailed Rule Inspector / Editor -->
                             <Border Grid.Column="1"
                                     Background="#22FFFFFF"
-                                    BorderBrush="#38FFFFFF"
+                                    BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="15">
@@ -851,7 +853,7 @@
 
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0">
                                                 <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding StatusText}" Foreground="#A855F7" FontSize="11"/>
+                                                <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="11"/>
                                             </StackPanel>
 
                                             <TextBlock Grid.Column="3"
@@ -893,7 +895,7 @@
                         <!-- Left: System Preferences -->
                         <Border Grid.Column="0"
                                 Background="#20FFFFFF"
-                                BorderBrush="#35FFFFFF"
+                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                 BorderThickness="1"
                                 CornerRadius="12"
                                 Padding="16"
@@ -902,14 +904,15 @@
                                 <StackPanel Margin="0,0,4,0">
                                     <TextBlock Text="{Binding PrefsTitle}" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
 
-                                    <TextBlock Text="{Binding GeneralSection}" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,2,0,6"/>
+                                    <TextBlock Text="{Binding GeneralSection}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,2,0,6"/>
                                     <CheckBox x:Name="PrefLaunchStartup" Content="{Binding PrefLaunchStartup}" Foreground="White" Margin="0,4"/>
+                                    <CheckBox x:Name="PrefStartMinimized" Content="{Binding PrefStartMinimized}" Foreground="White" Margin="0,4"/>
                                     <CheckBox x:Name="PrefShowForeground" Content="{Binding PrefShowForeground}" Foreground="White" Margin="0,4"/>
                                     <CheckBox x:Name="PrefMinimizeTray" Content="{Binding PrefMinimizeTray}" Foreground="White" Margin="0,4"/>
 
                                     <Separator Background="#28FFFFFF" Margin="0,10"/>
 
-                                    <TextBlock Text="{Binding EngineSection}" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding EngineSection}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
                                     <CheckBox x:Name="PrefStartMonitoring" Content="{Binding PrefStartMonitoring}" Foreground="White" Margin="0,4"/>
                                     <CheckBox x:Name="PrefShowNotification" Content="{Binding PrefShowNotification}" Foreground="White" Margin="0,4"/>
                                     <CheckBox x:Name="PrefMonitorModeOnly" Content="{Binding PrefMonitorMode}" Foreground="White" Margin="0,4"/>
@@ -917,7 +920,7 @@
 
                                     <Separator Background="#28FFFFFF" Margin="0,10"/>
 
-                                    <TextBlock Text="{Binding LogSection}" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding LogSection}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
                                     <CheckBox x:Name="PrefEnableLog" Content="{Binding PrefEnableLog}" Foreground="White" Margin="0,4"/>
                                     <StackPanel Orientation="Horizontal" Margin="0,6">
                                         <CheckBox x:Name="PrefWarnLogSize" Content="{Binding PrefWarnLogSize}" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
@@ -948,7 +951,7 @@
                             <!-- Crystal Appearance Card -->
                             <Border Grid.Row="0"
                                     Background="#20FFFFFF"
-                                    BorderBrush="#35FFFFFF"
+                                    BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                     BorderThickness="1"
                                     CornerRadius="12"
                                     Padding="15"
@@ -966,13 +969,13 @@
                                         <TextBlock Grid.Column="0" Text="{Binding CrystalOpacityLabel}" Foreground="White" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                         <Slider x:Name="GlassOpacitySlider"
                                                 Grid.Column="1"
-                                                Minimum="0.30" Maximum="0.95" Value="0.76"
+                                                Minimum="0.15" Maximum="0.95" Value="0.40"
                                                 VerticalAlignment="Center"
                                                 ValueChanged="GlassOpacitySlider_ValueChanged"/>
                                         <TextBlock x:Name="GlassOpacityPercentText"
                                                    Grid.Column="2"
-                                                   Text="76%"
-                                                   Foreground="#C084FC"
+                                                   Text="40%"
+                                                   Foreground="{DynamicResource ThemeAccentPrimaryBrush}"
                                                    FontWeight="Bold"
                                                    FontSize="12"
                                                    HorizontalAlignment="Right"
@@ -980,9 +983,9 @@
                                     </Grid>
 
                                     <UniformGrid Columns="2" Rows="2">
-                                        <Button x:Name="BtnThemeNebula" Style="{StaticResource GlassButtonStyle}" Margin="0,0,5,6" Click="ThemeNebula_Click" Content="{Binding ThemePurpleNebula}"/>
-                                        <Button x:Name="BtnThemeDark" Style="{StaticResource GlassButtonStyle}" Margin="5,0,0,6" Click="ThemeMidnightDark_Click" Content="{Binding ThemeMidnightDark}"/>
-                                        <Button x:Name="BtnThemeWindowsBlue" Style="{StaticResource GlassButtonStyle}" Margin="0,0,5,0" Click="ThemeWindowsBlue_Click" Content="{Binding ThemeWindowsBlue}"/>
+                                        <Button x:Name="BtnThemeWindowsBlue" Style="{StaticResource GlassButtonStyle}" Margin="0,0,5,6" Click="ThemeWindowsBlue_Click" Content="{Binding ThemeWindowsBlue}"/>
+                                        <Button x:Name="BtnThemeNebula" Style="{StaticResource GlassButtonStyle}" Margin="5,0,0,6" Click="ThemeNebula_Click" Content="{Binding ThemePurpleNebula}"/>
+                                        <Button x:Name="BtnThemeDark" Style="{StaticResource GlassButtonStyle}" Margin="0,0,5,0" Click="ThemeMidnightDark_Click" Content="{Binding ThemeMidnightDark}"/>
                                         <Button x:Name="BtnThemeCyan" Style="{StaticResource GlassButtonStyle}" Margin="5,0,0,0" Click="ThemeCyan_Click" Content="{Binding ThemeArcticCyan}"/>
                                     </UniformGrid>
                                 </StackPanel>
@@ -1018,7 +1021,7 @@
                             <StackPanel>
                                 <!-- Main Showcase Credits Card (Matches image_2.png layout & aesthetic) -->
                                 <Border Background="#D80B111E"
-                                        BorderBrush="#38567698"
+                                        BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                         BorderThickness="1.2"
                                         CornerRadius="14"
                                         Padding="26,24"
@@ -1033,8 +1036,8 @@
                                         <Border Grid.Column="0"
                                                 Width="76" Height="76"
                                                 CornerRadius="16"
-                                                Background="#18A855F7"
-                                                BorderBrush="#45C084FC"
+                                                Background="{DynamicResource ThemeAccentSoftBgBrush}"
+                                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                                 BorderThickness="1"
                                                 VerticalAlignment="Center"
                                                 HorizontalAlignment="Left">
@@ -1048,19 +1051,19 @@
                                             <!-- Title + Pill Badge Row -->
                                             <WrapPanel VerticalAlignment="Center" Margin="0,0,0,10">
                                                 <TextBlock Text="{Binding AboutHeaderTitle}"
-                                                           Foreground="#38BDF8"
+                                                           Foreground="{DynamicResource ThemeAccentPrimaryBrush}"
                                                            FontSize="17"
                                                            FontWeight="Bold"
                                                            VerticalAlignment="Center"
                                                            Margin="0,0,12,4"/>
-                                                <Border Background="#1838BDF8"
-                                                        BorderBrush="#5538BDF8"
+                                                <Border Background="{DynamicResource ThemeAccentSoftBgBrush}"
+                                                        BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                                         BorderThickness="1"
                                                         CornerRadius="11"
                                                         Padding="11,3"
                                                         Margin="0,0,0,4">
                                                     <TextBlock Text="{Binding AboutBadgeText}"
-                                                               Foreground="#7DD3FC"
+                                                               Foreground="{DynamicResource ThemeAccentPrimaryBrush}"
                                                                FontSize="11.5"
                                                                FontWeight="SemiBold"/>
                                                 </Border>
@@ -1123,23 +1126,23 @@
 
                                 <!-- Version Control & Architecture Details Grid -->
                                 <UniformGrid Columns="3">
-                                    <Border Background="#1EFFFFFF" BorderBrush="#32FFFFFF" BorderThickness="1" CornerRadius="11" Padding="15" Margin="0,0,8,0">
+                                    <Border Background="#1EFFFFFF" BorderBrush="{DynamicResource ThemeAccentBorderBrush}" BorderThickness="1" CornerRadius="11" Padding="15" Margin="0,0,8,0">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding CardVersionHeader}" Foreground="#C084FC" FontSize="10.5" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding CardVersionHeader}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="10.5" FontWeight="Bold"/>
                                             <TextBlock Text="{Binding CardVersionTitle}" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,4"/>
                                             <TextBlock Text="{Binding CardVersionDesc}" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Background="#1EFFFFFF" BorderBrush="#32FFFFFF" BorderThickness="1" CornerRadius="11" Padding="15" Margin="4,0,4,0">
+                                    <Border Background="#1EFFFFFF" BorderBrush="{DynamicResource ThemeAccentBorderBrush}" BorderThickness="1" CornerRadius="11" Padding="15" Margin="4,0,4,0">
                                         <StackPanel>
-                                            <TextBlock Text="{Binding CardAuthorHeader}" Foreground="#38BDF8" FontSize="10.5" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding CardAuthorHeader}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="10.5" FontWeight="Bold"/>
                                             <TextBlock Text="Irving Ngr" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,4"/>
                                             <TextBlock Text="GitHub: github.com/irvingngr/win-task-blocker" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap"/>
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Background="#1EFFFFFF" BorderBrush="#32FFFFFF" BorderThickness="1" CornerRadius="11" Padding="15" Margin="8,0,0,0">
+                                    <Border Background="#1EFFFFFF" BorderBrush="{DynamicResource ThemeAccentBorderBrush}" BorderThickness="1" CornerRadius="11" Padding="15" Margin="8,0,0,0">
                                         <StackPanel>
                                             <TextBlock Text="{Binding CardBilingualHeader}" Foreground="#4ADE80" FontSize="10.5" FontWeight="Bold"/>
                                             <TextBlock Text="English &amp; Español" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,4"/>
@@ -1157,8 +1160,8 @@
                             Background="#B8090D16"
                             CornerRadius="12"
                             Padding="20">
-                        <Border Background="#F21E1638"
-                                BorderBrush="#66C084FC"
+                        <Border Background="{DynamicResource ThemeModalBgBrush}"
+                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
                                 BorderThickness="1.5"
                                 CornerRadius="14"
                                 MaxWidth="760"
@@ -1256,7 +1259,7 @@
                                                         <TextBlock Grid.Column="1" Text="{Binding ProcessName}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Grid.Column="2" Text="{Binding Id}" Foreground="#CBD5E1" FontSize="12"/>
                                                         <TextBlock Grid.Column="3" Text="{Binding Description}" Foreground="#CBD5E1" FontSize="12" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Grid.Column="4" Text="{Binding MemoryText}" Foreground="#A855F7" FontSize="11.5"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding MemoryText}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="11.5"/>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ListBox.ItemTemplate>

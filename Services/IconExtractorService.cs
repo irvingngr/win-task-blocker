@@ -7,17 +7,61 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
+using WinTaskBlocker.Models;
 
 namespace WinTaskBlocker.Services;
 
 /// <summary>
-/// Extracts native icons from Windows executables (.exe) and caches them,
-/// with smart path resolution and modern vector badge fallback.
+/// Extracts native icons from Windows executables (.exe) and caches them.
+/// Uses instant in-memory vector badges on startup and resolves native icons asynchronously in the background.
 /// </summary>
 public static class IconExtractorService
 {
     private static readonly ConcurrentDictionary<string, ImageSource> IconCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, string> KnownPathsCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Fast non-blocking icon lookup for instant UI startup.
+    /// </summary>
+    public static ImageSource GetFastBadgeOrCachedIcon(string processName, string? explicitPath = null)
+    {
+        string key = !string.IsNullOrWhiteSpace(explicitPath) ? explicitPath : processName;
+        if (IconCache.TryGetValue(key, out var cached))
+            return cached;
+
+        return CreateModernBadgeIcon(processName);
+    }
+
+    /// <summary>
+    /// Resolves native icons in the background after the window has already loaded so startup is instantaneous.
+    /// </summary>
+    public static void ResolveIconsInBackgroundAsync(IEnumerable<BlockedTaskItem> items, Dispatcher dispatcher)
+    {
+        var list = items.ToList();
+        _ = Task.Run(() =>
+        {
+            foreach (var item in list)
+            {
+                try
+                {
+                    string? path = !string.IsNullOrWhiteSpace(item.ExecutablePath) && File.Exists(item.ExecutablePath)
+                        ? item.ExecutablePath
+                        : TryResolveExecutablePath(item.ProcessName);
+
+                    if (!string.IsNullOrWhiteSpace(path) && File.Exists(path))
+                    {
+                        dispatcher.InvokeAsync(() =>
+                        {
+                            item.ExecutablePath = path;
+                            item.Icon = GetIconForProcess(item.ProcessName, path);
+                        }, DispatcherPriority.Background);
+                    }
+                }
+                catch { }
+            }
+        });
+    }
 
     public static ImageSource GetIconForProcess(string processName, string? explicitPath = null)
     {
@@ -44,13 +88,11 @@ public static class IconExtractorService
                         BitmapSizeOptions.FromEmptyOptions());
                     bmp.Freeze();
                     IconCache[key] = bmp;
+                    IconCache[processName] = bmp;
                     return bmp;
                 }
             }
-            catch
-            {
-                // Ignore extraction failure and use stylized vector badge
-            }
+            catch { }
         }
 
         var fallback = CreateModernBadgeIcon(processName);
@@ -68,7 +110,7 @@ public static class IconExtractorService
             ? processName
             : processName + ".exe";
 
-        // 1. Check System32 / Windows directory
+        // 1. Check System32 / Windows directory (Direct O(1) File.Exists)
         string sys32 = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), exeName);
         if (File.Exists(sys32))
         {
@@ -76,42 +118,7 @@ public static class IconExtractorService
             return sys32;
         }
 
-        // 2. Check common known paths for Adobe, Logitech, AnyDesk, etc.
-        string progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        string progFiles86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-
-        string[] candidateFolders =
-        [
-            Path.Combine(progFiles, "Adobe"),
-            Path.Combine(progFiles, "Common Files", "Adobe"),
-            Path.Combine(progFiles86, "Common Files", "Adobe"),
-            Path.Combine(progFiles86, "Adobe"),
-            Path.Combine(progFiles, "LGHUB"),
-            Path.Combine(progFiles, "AnyDesk"),
-            Path.Combine(progFiles86, "AnyDesk"),
-            Path.Combine(localAppData, "Programs")
-        ];
-
-        foreach (var folder in candidateFolders)
-        {
-            if (!Directory.Exists(folder)) continue;
-            try
-            {
-                var match = Directory.EnumerateFiles(folder, exeName, SearchOption.AllDirectories).FirstOrDefault();
-                if (!string.IsNullOrEmpty(match))
-                {
-                    KnownPathsCache[processName] = match;
-                    return match;
-                }
-            }
-            catch
-            {
-                // Ignore permission errors in subdirectories
-            }
-        }
-
-        // 3. Check currently running processes
+        // 2. Check currently running processes first (Fast in-memory check)
         try
         {
             string bareName = Path.GetFileNameWithoutExtension(exeName);
@@ -132,10 +139,47 @@ public static class IconExtractorService
         }
         catch { }
 
+        // 3. Check targeted known directories (Bounded depth to avoid heavy disk I/O)
+        string progFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        string progFiles86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+        string[] candidateFolders =
+        [
+            Path.Combine(progFiles, "Adobe"),
+            Path.Combine(progFiles, "Common Files", "Adobe"),
+            Path.Combine(progFiles86, "Common Files", "Adobe"),
+            Path.Combine(progFiles, "LGHUB"),
+            Path.Combine(progFiles, "AnyDesk"),
+            Path.Combine(progFiles86, "AnyDesk")
+        ];
+
+        var enumOpts = new EnumerationOptions
+        {
+            IgnoreInaccessible = true,
+            MatchCasing = MatchCasing.CaseInsensitive,
+            RecurseSubdirectories = true,
+            MaxRecursionDepth = 3
+        };
+
+        foreach (var folder in candidateFolders)
+        {
+            if (!Directory.Exists(folder)) continue;
+            try
+            {
+                var match = Directory.EnumerateFiles(folder, exeName, enumOpts).FirstOrDefault();
+                if (!string.IsNullOrEmpty(match))
+                {
+                    KnownPathsCache[processName] = match;
+                    return match;
+                }
+            }
+            catch { }
+        }
+
         return null;
     }
 
-    private static ImageSource CreateModernBadgeIcon(string processName)
+    public static ImageSource CreateModernBadgeIcon(string processName)
     {
         string clean = Path.GetFileNameWithoutExtension(processName).Trim();
         string initials = clean.Length >= 2
@@ -161,13 +205,13 @@ public static class IconExtractorService
         }
         else if (lower.Contains("gaming"))
         {
-            c1 = System.Windows.Media.Color.FromRgb(168, 85, 247);
-            c2 = System.Windows.Media.Color.FromRgb(109, 40, 217);
+            c1 = System.Windows.Media.Color.FromRgb(56, 189, 248);
+            c2 = System.Windows.Media.Color.FromRgb(29, 78, 216);
         }
         else
         {
-            c1 = System.Windows.Media.Color.FromRgb(99, 102, 241);
-            c2 = System.Windows.Media.Color.FromRgb(139, 92, 246);
+            c1 = System.Windows.Media.Color.FromRgb(14, 165, 233);
+            c2 = System.Windows.Media.Color.FromRgb(37, 99, 235);
         }
 
         var visual = new DrawingVisual();

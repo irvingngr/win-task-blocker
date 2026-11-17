@@ -27,46 +27,47 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore WinTaskBlocker.csproj
 
-      - name: Publish Single-File Portable Executable (win-x64)
+      - name: Publish Fast-Boot ReadyToRun Portable Executable (win-x64)
         run: |
           dotnet publish WinTaskBlocker.csproj `
             -c Release `
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
+            -p:PublishReadyToRun=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
-            -p:EnableCompressionInSingleFile=true `
-            -o publish/WinTaskBlocker_v2.0.0_Portable
-          Compress-Archive -Path publish/WinTaskBlocker_v2.0.0_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip -Force
+            -p:EnableCompressionInSingleFile=false `
+            -o publish/WinTaskBlocker_v2.0.1_Portable
+          Compress-Archive -Path publish/WinTaskBlocker_v2.0.1_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.1-win-x64-Portable.zip -Force
 
       - name: Upload Portable Executable Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WinTaskBlocker-v2.0.0-Windows-x64-Portable
+          name: WinTaskBlocker-v2.0.1-Windows-x64-Portable
           path: |
-            publish/WinTaskBlocker_v2.0.0_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0.0_Portable/config.ini
-            publish/WinTaskBlocker_v2.0.0_Portable/Assets/app.ico
-            publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.1_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.1_Portable/config.ini
+            publish/WinTaskBlocker_v2.0.1_Portable/Assets/app.ico
+            publish/WinTaskBlocker-v2.0.1-win-x64-Portable.zip
 
       - name: Publish GitHub Release on Tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: "Win Task Blocker ${{ github.ref_name }} — Acrylic Glass Edition"
+          name: "Win Task Blocker ${{ github.ref_name }}"
           body: |
-            ## 🛡️ Win Task Blocker ${{ github.ref_name }} — Process & Startup Guardian
+            ## 🛡️ Win Task Blocker ${{ github.ref_name }}
 
             Modern, ultra-lightweight process blocker, conditional dependency guardian, and Windows startup manager for Windows 10 & Windows 11.
 
-            ### ✨ Highlights
-            - 🌐 **Bilingual Interface (English & Spanish)**: Starts in **English** by default with an instant **flag toggle button** in the top titlebar to switch between English (`EN`) and Spanish (`ES`).
-            - 💎 **Acrylic Crystal Finishes & Persistence**: Native Windows 10/11 DWM Acrylic blur with single rounded corners (no double border), sleek custom scrollbars, adjustable Crystal Opacity slider, and 4 persisted crystal themes: **Purple Nebula**, **Midnight Dark**, **Windows Blue**, and **Arctic Cyan**.
-            - ⚡ **Conditional Blocking & Dynamic Quick Profiles**: Block child/background processes (e.g. Adobe IPC/Crash services) when their main parent application is closed, or group processes into profiles that sync dynamically with the **Quick Profiles** sidebar.
-            - 🔍 **Multi-Tab Predictive Search**: Filters across **Blocked Tasks**, **Conditional Rules**, and **Windows Startup**, and automatically hides on tabs where search is not applicable.
-            - 🔒 **Single-Instance Guard**: Prevents duplicate instances and automatically brings the active window to the front when launched again.
+            ### 🚀 What's New in ${{ github.ref_name }}
+            - ⚡ **Instant Cold-Boot & Native Splash Screen**: Precompiled with **ReadyToRun (R2R)** native x64 code, non-blocking background `.exe` icon resolution, and a native **Splash Screen** featuring the official Win Task Blocker logo.
+            - 🔇 **Run on Windows Startup (Minimized) & Auto-Block**: Added **"Run on Windows startup (minimized)"** option and guaranteed automatic **Block Enabled** state on startup (even if previously stopped).
+            - 💠 **Default 40% Windows Blue Crystal & Dynamic Theme Accents**: Defaults to **40% Opacity — Windows Blue**. Switching crystal finishes (**Windows Blue**, **Purple Nebula**, **Midnight Dark**, **Arctic Cyan**) now dynamically updates all button borders, selected rows, badges, and accented texts across the entire UI.
+            - 🎯 **Streamlined Controls & Default Profiles**: Simplified status/action labels (**Block Enabled**, **Block Disabled**, **Start**, **Stop** / **Bloqueo Activo**, **Bloqueo Desactivado**, **Iniciar**, **Detener**) and preconfigured **Adobe Suite** & **Gaming / Focus Mode** conditional profiles.
+            - 🌐 **Bilingual Interface (English & Spanish)**: Starts in **English** by default with an instant **flag toggle button** in the top titlebar (`EN` / `ES`).
             - 👤 **About & Credits**: Crafted by **Irving Ngr** 🇻🇪 • 100% compatible with legacy `config.ini` (`True|process.exe|count`).
           files: |
-            publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip
-            publish/WinTaskBlocker_v2.0.0_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0.0_Portable/config.ini
+            publish/WinTaskBlocker-v2.0.1-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.1_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.1_Portable/config.ini
