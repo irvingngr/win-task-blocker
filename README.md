@@ -2,7 +2,7 @@
   <img src="Assets/logo.png" alt="Win Task Blocker Logo" width="128" height="128" />
 </p>
 
-<h1 align="center">Win Task Blocker v2.0.0 — Acrylic Glass Edition</h1>
+<h1 align="center">Win Task Blocker v2.0.0</h1>
 
 <p align="center">
   <strong>Modern, ultra-lightweight process blocker, conditional dependency guardian, and Windows startup manager for Windows 10 &amp; Windows 11.</strong>
@@ -60,6 +60,6 @@ dotnet publish WinTaskBlocker.csproj -c Release -r win-x64 --self-contained true
 
 ## 👤 Credits & Version Control
 
-- **Crafted by**: **Irving Ngr** 🇻🇪
+- **Crafted by**: **Irving Ngr**
 - **Current Version**: `v2.0.0`
 - **Compatibility**: Legacy Task Blocker v1.5 `config.ini` format
