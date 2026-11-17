@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 using System.Windows.Media;
+using WinTaskBlocker.Services;
 
 namespace WinTaskBlocker.Models;
 
@@ -13,7 +14,7 @@ public class BlockedTaskItem : INotifyPropertyChanged
     private string _executablePath = string.Empty;
     private string _description = string.Empty;
     private string _profileGroup = "General";
-    private string _lastBlockedText = "Nunca";
+    private string _lastBlockedTimeRaw = string.Empty;
     private ImageSource? _icon;
 
     public bool IsEnabled
@@ -54,8 +55,17 @@ public class BlockedTaskItem : INotifyPropertyChanged
 
     public string LastBlockedText
     {
-        get => _lastBlockedText;
-        set { _lastBlockedText = value; OnPropertyChanged(); }
+        get
+        {
+            var loc = LocalizationService.Instance;
+            string timeVal = string.IsNullOrWhiteSpace(_lastBlockedTimeRaw) ? loc.NeverBlocked : _lastBlockedTimeRaw;
+            return $"{loc.LastBlockedPrefix} {timeVal}";
+        }
+        set
+        {
+            _lastBlockedTimeRaw = value;
+            OnPropertyChanged();
+        }
     }
 
     [JsonIgnore]
@@ -63,6 +73,11 @@ public class BlockedTaskItem : INotifyPropertyChanged
     {
         get => _icon;
         set { _icon = value; OnPropertyChanged(); }
+    }
+
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(LastBlockedText));
     }
 
     /// <summary>
@@ -93,12 +108,12 @@ public class BlockedTaskItem : INotifyPropertyChanged
     public static string InferProfileGroup(string processName)
     {
         var lower = processName.ToLowerInvariant();
-        if (lower.Contains("adobe") || lower.Contains("ccxprocess") || lower.Contains("acro") || lower.Contains("armsvc"))
-            return "Suite Adobe";
+        if (lower.Contains("adobe") || lower.Contains("ccxprocess") || lower.Contains("acro") || lower.Contains("armsvc") || lower.Contains("coresync"))
+            return "Adobe Suite";
         if (lower.Contains("lghub") || lower.Contains("logi"))
-            return "Logitech";
+            return "Logitech G HUB";
         if (lower.Contains("anydesk") || lower.Contains("logmein") || lower.Contains("teamviewer"))
-            return "Acceso Remoto";
+            return "Remote Access";
         if (lower.Contains("gaming"))
             return "Gaming / OSD";
         return "General";
@@ -110,10 +125,10 @@ public class BlockedTaskItem : INotifyPropertyChanged
         return lower switch
         {
             "adobe crash processor.exe" => "Adobe Crash Reporter Background Service",
-            "adobeipcbroker.exe" => "Adobe IPC Broker (Comunicación en segundo plano)",
+            "adobeipcbroker.exe" => "Adobe IPC Broker Background Process",
             "ccxprocess.exe" => "Adobe Creative Cloud Experience Process",
             "anydesk.exe" => "AnyDesk Remote Desktop Service",
-            "cmd.exe" => " Símbolo del sistema de Windows",
+            "cmd.exe" => "Windows Command Processor",
             "cscript.exe" => "Microsoft Console Based Script Host",
             "devenv.exe" => "Microsoft Visual Studio IDE",
             "gamingapp.exe" => "MSI Gaming App Background Service",
@@ -123,7 +138,7 @@ public class BlockedTaskItem : INotifyPropertyChanged
             "logiregistryservice.exe" => "Logitech Surround Sound / Registry Service",
             "logmein.exe" => "LogMeIn Remote Access Service",
             "logmeinavserver.exe" => "LogMeIn AV Server",
-            _ => "Ejecutable de Windows (.exe)"
+            _ => "Windows Executable (.exe)"
         };
     }
 

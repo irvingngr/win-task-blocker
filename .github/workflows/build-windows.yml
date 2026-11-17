@@ -33,13 +33,15 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
-            -o publish/WinTaskBlocker_v2.0_Portable
+            -o publish/WinTaskBlocker_v2.0.0_Portable
+          Compress-Archive -Path publish/WinTaskBlocker_v2.0.0_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip -Force
 
       - name: Upload Portable Executable Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WinTaskBlocker-v2.0-Windows-x64-Portable
+          name: WinTaskBlocker-v2.0.0-Windows-x64-Portable
           path: |
-            publish/WinTaskBlocker_v2.0_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0_Portable/config.ini
-            publish/WinTaskBlocker_v2.0_Portable/Assets/app.ico
+            publish/WinTaskBlocker_v2.0.0_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.0_Portable/config.ini
+            publish/WinTaskBlocker_v2.0.0_Portable/Assets/app.ico
+            publish/WinTaskBlocker-v2.0.0-win-x64-Portable.zip

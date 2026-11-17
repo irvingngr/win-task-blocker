@@ -2,7 +2,10 @@ namespace WinTaskBlocker.Models;
 
 public class AppPreferences
 {
-    // General Options (from classic Task Blocker v1.5 + modern additions)
+    // Language ("en" default as requested, or "es")
+    public string Language { get; set; } = "en";
+
+    // General Options
     public bool LaunchAtWindowsStartup { get; set; } = true;
     public bool ShowInForegroundOnStart { get; set; } = false;
     public bool MinimizeToTrayOnClose { get; set; } = true;
@@ -16,11 +19,11 @@ public class AppPreferences
     // Task Monitoring Options
     public bool StartMonitoringOnAppStart { get; set; } = true;
     public bool ShowNotificationWhenBlocked { get; set; } = true;
-    public bool MonitorModeOnly { get; set; } = false; // Tasks counted/logged but not killed
-    public bool FastRealtimeCheck { get; set; } = true; // Uses WMI + optimized low-CPU snapshot (350ms)
+    public bool MonitorModeOnly { get; set; } = false;
+    public bool FastRealtimeCheck { get; set; } = true;
     public int ScanIntervalMs { get; set; } = 400;
 
-    // Appearance (Wintoys + Acrylic Glass style like example.jpg)
-    public double GlassOpacity { get; set; } = 0.72;
-    public string AccentTheme { get; set; } = "PurpleNebula"; // PurpleNebula, CyanFrost, MidnightGlass
+    // Crystal Appearance (Saved automatically when adjusted)
+    public double GlassOpacity { get; set; } = 0.76;
+    public string AccentTheme { get; set; } = "PurpleNebula"; // PurpleNebula, MidnightDark, WindowsBlue, ArcticCyan
 }

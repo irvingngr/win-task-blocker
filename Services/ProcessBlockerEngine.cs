@@ -138,23 +138,18 @@ public class ProcessBlockerEngine : IDisposable
                         rule.IsParentCurrentlyRunning = anyAnchorActive;
 
                         if (!rule.IsEnabled)
-                        {
-                            rule.CurrentStateText = "Inactivo";
                             continue;
-                        }
 
                         switch (rule.Mode)
                         {
                             case ConditionalRuleMode.BlockWhenParentInactive:
                                 if (anyAnchorActive)
                                 {
-                                    rule.CurrentStateText = "Permitido (Programa principal activo)";
                                     foreach (var target in rule.TargetProcesses)
                                         conditionallyAllowed.Add(NormalizeExeName(target));
                                 }
                                 else
                                 {
-                                    rule.CurrentStateText = "Bloqueando (Programa principal cerrado)";
                                     foreach (var target in rule.TargetProcesses)
                                         conditionallyBlocked[NormalizeExeName(target)] = rule;
                                 }
@@ -163,18 +158,12 @@ public class ProcessBlockerEngine : IDisposable
                             case ConditionalRuleMode.BlockWhenParentActive:
                                 if (anyAnchorActive)
                                 {
-                                    rule.CurrentStateText = "Bloqueando (Programa principal activo)";
                                     foreach (var target in rule.TargetProcesses)
                                         conditionallyBlocked[NormalizeExeName(target)] = rule;
-                                }
-                                else
-                                {
-                                    rule.CurrentStateText = "En espera (Programa principal cerrado)";
                                 }
                                 break;
 
                             case ConditionalRuleMode.ProfileAlwaysBlock:
-                                rule.CurrentStateText = "Bloqueando grupo";
                                 foreach (var target in rule.TargetProcesses)
                                     conditionallyBlocked[NormalizeExeName(target)] = rule;
                                 break;

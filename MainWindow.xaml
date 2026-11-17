@@ -2,14 +2,16 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:svc="clr-namespace:WinTaskBlocker.Services"
         Title="Win Task Blocker"
         Icon="pack://application:,,,/Assets/logo.png"
-        Width="1080" Height="700"
-        MinWidth="900" MinHeight="580"
+        Width="1120" Height="720"
+        MinWidth="940" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
+        DataContext="{x:Static svc:LocalizationService.Instance}"
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
@@ -17,26 +19,26 @@
         <shell:WindowChrome CaptionHeight="0"
                             ResizeBorderThickness="6"
                             GlassFrameThickness="0"
-                            CornerRadius="16"/>
+                            CornerRadius="8"/>
     </shell:WindowChrome.WindowChrome>
 
-    <!-- Root Translucent Glass Surface (like example.jpg + Wintoys integrated header) -->
+    <!-- Single Rounded Glass Border matching Windows 11 native 8px DWM corner radius (No double corner border) -->
     <Border x:Name="RootGlassBorder"
-            CornerRadius="16"
-            BorderBrush="#48FFFFFF"
-            BorderThickness="1.2"
+            CornerRadius="8"
+            BorderBrush="#42FFFFFF"
+            BorderThickness="1"
             ClipToBounds="True">
         <Border.Background>
             <LinearGradientBrush x:Name="RootGlassGradient" StartPoint="0,0" EndPoint="1,1">
-                <GradientStop x:Name="GradStop1" Color="#BA3B1D5E" Offset="0.0"/>
-                <GradientStop x:Name="GradStop2" Color="#B52B194D" Offset="0.45"/>
-                <GradientStop x:Name="GradStop3" Color="#BC151936" Offset="1.0"/>
+                <GradientStop x:Name="GradStop1" Color="#C23B1D5E" Offset="0.0"/>
+                <GradientStop x:Name="GradStop2" Color="#BD2B194D" Offset="0.48"/>
+                <GradientStop x:Name="GradStop3" Color="#C4151936" Offset="1.0"/>
             </LinearGradientBrush>
         </Border.Background>
 
         <Grid>
             <Grid.RowDefinitions>
-                <!-- Integrated Wintoys Titlebar -->
+                <!-- Integrated Titlebar -->
                 <RowDefinition Height="54"/>
                 <!-- Main Body -->
                 <RowDefinition Height="*"/>
@@ -44,15 +46,15 @@
                 <RowDefinition Height="34"/>
             </Grid.RowDefinitions>
 
-            <!-- ==================== INTEGRATED TITLE BAR (WINTOYS STYLE) ==================== -->
+            <!-- ==================== INTEGRATED TITLE BAR ==================== -->
             <Border Grid.Row="0"
                     Background="#18FFFFFF"
-                    BorderBrush="#28FFFFFF"
+                    BorderBrush="#26FFFFFF"
                     BorderThickness="0,0,0,1"
                     MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <Grid Margin="16,0,12,0">
+                <Grid Margin="16,0,10,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="240"/>
+                        <ColumnDefinition Width="245"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
@@ -65,12 +67,13 @@
                                RenderOptions.BitmapScalingMode="HighQuality"/>
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Text="Win Task Blocker" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                            <TextBlock Text="v2.0 Acrylic Edition" Foreground="#CBD5E1" FontSize="10.5"/>
+                            <TextBlock Text="{Binding AppSubtitle}" Foreground="#CBD5E1" FontSize="10.5"/>
                         </StackPanel>
                     </StackPanel>
 
-                    <!-- Global Predictive Search Bar (Integrated in Titlebar like example.jpg / Wintoys) -->
-                    <Border Grid.Column="1"
+                    <!-- Global Predictive Search Bar (Works across Blocked Tasks, Conditional Rules & Startup; hidden in Prefs/About) -->
+                    <Border x:Name="GlobalSearchBorder"
+                            Grid.Column="1"
                             MaxWidth="440"
                             Height="34"
                             CornerRadius="17"
@@ -79,14 +82,21 @@
                             BorderThickness="1"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Center"
-                            Margin="10,0">
+                            Margin="12,0">
                         <Grid Margin="12,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="22"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="🔍" VerticalAlignment="Center" FontSize="12" Opacity="0.85"/>
+                            <Path Grid.Column="0"
+                                  Data="M10,2 A8,8 0 1,0 10,18 A8,8 0 1,0 10,2 M16,16 L21,21"
+                                  Stroke="#CBD5E1"
+                                  StrokeThickness="1.8"
+                                  Stretch="Uniform"
+                                  Width="13" Height="13"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Left"/>
                             <TextBox x:Name="GlobalSearchBox"
                                      Grid.Column="1"
                                      Background="Transparent"
@@ -98,10 +108,11 @@
                                      TextChanged="GlobalSearchBox_TextChanged"/>
                             <TextBlock x:Name="GlobalSearchPlaceholder"
                                        Grid.Column="1"
-                                       Text="Buscar procesos, reglas o archivos .exe..."
+                                       Text="{Binding SearchPlaceholderBlocked}"
                                        Foreground="#B8CBD5E1"
-                                       FontSize="12.5"
+                                       FontSize="12"
                                        VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
                                        IsHitTestVisible="False"/>
                             <Button x:Name="ClearSearchBtn"
                                     Grid.Column="2"
@@ -113,26 +124,69 @@
                         </Grid>
                     </Border>
 
-                    <!-- Engine Status Badge & Window Controls -->
+                    <!-- Language Flag Switcher, Engine Status Badge & Window Controls -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Language Switcher Button with Vector Flag (EN / ES) -->
+                        <Button x:Name="LanguageFlagBtn"
+                                Style="{StaticResource GlassButtonStyle}"
+                                Padding="9,4"
+                                Margin="0,0,10,0"
+                                ToolTip="{Binding FlagTooltip}"
+                                Click="LanguageFlagBtn_Click">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <!-- Crisp Vector Flag Icon (Updated dynamically for EN / ES) -->
+                                <Border Width="20" Height="14" CornerRadius="2" ClipToBounds="True" BorderBrush="#55FFFFFF" BorderThickness="0.8" Margin="0,0,6,0">
+                                    <Grid>
+                                        <!-- English (US/UK Flag representation) -->
+                                        <Grid x:Name="FlagEnglishIcon" Visibility="Visible">
+                                            <Rectangle Fill="#B91C1C"/>
+                                            <StackPanel>
+                                                <Rectangle Height="2" Fill="#B91C1C"/>
+                                                <Rectangle Height="2" Fill="White"/>
+                                                <Rectangle Height="2" Fill="#B91C1C"/>
+                                                <Rectangle Height="2" Fill="White"/>
+                                                <Rectangle Height="2" Fill="#B91C1C"/>
+                                                <Rectangle Height="2" Fill="White"/>
+                                                <Rectangle Height="2" Fill="#B91C1C"/>
+                                            </StackPanel>
+                                            <Rectangle Width="9" Height="8" Fill="#1E3A8A" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                                        </Grid>
+                                        <!-- Spanish Flag representation -->
+                                        <Grid x:Name="FlagSpanishIcon" Visibility="Collapsed">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="3.5*"/>
+                                                <RowDefinition Height="7*"/>
+                                                <RowDefinition Height="3.5*"/>
+                                            </Grid.RowDefinitions>
+                                            <Rectangle Grid.Row="0" Fill="#C60B1E"/>
+                                            <Rectangle Grid.Row="1" Fill="#FFC400"/>
+                                            <Rectangle Grid.Row="2" Fill="#C60B1E"/>
+                                        </Grid>
+                                    </Grid>
+                                </Border>
+                                <TextBlock x:Name="LanguageCodeText" Text="EN" Foreground="White" FontSize="11.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Protection Status Pill -->
                         <Border x:Name="HeaderEngineBadge"
                                 Background="#2822C55E"
                                 BorderBrush="#6622C55E"
                                 BorderThickness="1"
                                 CornerRadius="12"
                                 Padding="10,4"
-                                Margin="0,0,12,0"
+                                Margin="0,0,10,0"
                                 Cursor="Hand"
                                 MouseLeftButtonUp="ToggleEngine_Click">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Ellipse x:Name="EngineStatusDot" Width="8" Height="8" Fill="#4ADE80" Margin="0,0,6,0"/>
-                                <TextBlock x:Name="EngineStatusHeaderText" Text="Protección Activa" Foreground="White" FontSize="11.5" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="EngineStatusHeaderText" Text="{Binding ProtectionActive}" Foreground="White" FontSize="11.5" FontWeight="SemiBold"/>
                             </StackPanel>
                         </Border>
 
-                        <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="Minimizar a la bandeja" Click="MinimizeWindow_Click" Content="—"/>
-                        <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="Maximizar / Restaurar" Click="MaximizeWindow_Click" Content="▢"/>
-                        <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="Cerrar" Click="CloseWindow_Click" Content="✕"/>
+                        <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="{Binding MinTooltip}" Click="MinimizeWindow_Click" Content="—"/>
+                        <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="{Binding MaxTooltip}" Click="MaximizeWindow_Click" Content="▢"/>
+                        <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="{Binding CloseTooltip}" Click="CloseWindow_Click" Content="✕"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -140,29 +194,34 @@
             <!-- ==================== MAIN BODY (SIDEBAR + CONTENT) ==================== -->
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
-                    <!-- Wintoys Navigation Sidebar -->
-                    <ColumnDefinition Width="235"/>
-                    <!-- Active View Content -->
+                    <ColumnDefinition Width="232"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- LEFT SIDEBAR -->
                 <Border Grid.Column="0"
-                        Background="#180F172A"
+                        Background="#1A0F172A"
                         BorderBrush="#24FFFFFF"
                         BorderThickness="0,0,1,0"
-                        Padding="12,14">
-                    <DockPanel LastChildFill="False">
-                        <StackPanel DockPanel.Dock="Top">
-                            <TextBlock Text="PANEL DE CONTROL" Foreground="#94A3B8" FontSize="10.5" FontWeight="Bold" Margin="10,0,0,8"/>
+                        Padding="12,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Main Navigation Items -->
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="{Binding ControlPanelHeader}" Foreground="#94A3B8" FontSize="10.5" FontWeight="Bold" Margin="10,0,0,6"/>
 
                             <RadioButton x:Name="NavBlockedBtn"
                                          Style="{StaticResource NavRadioButtonStyle}"
                                          IsChecked="True"
                                          Checked="NavButton_Checked">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🛡️" FontSize="14" Margin="0,0,10,0"/>
-                                    <TextBlock Text="Tareas Bloqueadas"/>
+                                    <Ellipse Width="8" Height="8" Fill="#A855F7" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding NavBlockedTasks}"/>
                                 </StackPanel>
                             </RadioButton>
 
@@ -170,8 +229,8 @@
                                          Style="{StaticResource NavRadioButtonStyle}"
                                          Checked="NavButton_Checked">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⚡" FontSize="14" Margin="0,0,10,0"/>
-                                    <TextBlock Text="Bloqueo Condicional"/>
+                                    <Ellipse Width="8" Height="8" Fill="#38BDF8" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding NavConditional}"/>
                                 </StackPanel>
                             </RadioButton>
 
@@ -179,8 +238,8 @@
                                          Style="{StaticResource NavRadioButtonStyle}"
                                          Checked="NavButton_Checked">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🚀" FontSize="14" Margin="0,0,10,0"/>
-                                    <TextBlock Text="Inicio de Windows"/>
+                                    <Ellipse Width="8" Height="8" Fill="#4ADE80" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding NavStartup}"/>
                                 </StackPanel>
                             </RadioButton>
 
@@ -188,63 +247,83 @@
                                          Style="{StaticResource NavRadioButtonStyle}"
                                          Checked="NavButton_Checked">
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="⚙️" FontSize="14" Margin="0,0,10,0"/>
-                                    <TextBlock Text="Preferencias y Cristal"/>
+                                    <Ellipse Width="8" Height="8" Fill="#FBBF24" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding NavPreferences}"/>
                                 </StackPanel>
                             </RadioButton>
 
-                            <Separator Background="#28FFFFFF" Margin="6,14"/>
+                            <RadioButton x:Name="NavAboutBtn"
+                                         Style="{StaticResource NavRadioButtonStyle}"
+                                         Checked="NavButton_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Fill="#F472B6" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding NavAbout}"/>
+                                </StackPanel>
+                            </RadioButton>
 
-                            <TextBlock Text="PERFILES RÁPIDOS" Foreground="#94A3B8" FontSize="10.5" FontWeight="Bold" Margin="10,0,0,8"/>
+                            <Separator Background="#28FFFFFF" Margin="6,10"/>
 
-                            <Button Style="{StaticResource GlassButtonStyle}" HorizontalContentAlignment="Left" Margin="0,3" Click="QuickFilterAll_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="📋  Todos los procesos" FontSize="12"/>
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource GlassButtonStyle}" HorizontalContentAlignment="Left" Margin="0,3" Click="QuickFilterAdobe_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🔴  Suite Adobe" FontSize="12"/>
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource GlassButtonStyle}" HorizontalContentAlignment="Left" Margin="0,3" Click="QuickFilterLogitech_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🔵  Logitech G HUB" FontSize="12"/>
-                                </StackPanel>
-                            </Button>
-                            <Button Style="{StaticResource GlassButtonStyle}" HorizontalContentAlignment="Left" Margin="0,3" Click="QuickFilterRemote_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="🟠  Acceso Remoto" FontSize="12"/>
-                                </StackPanel>
-                            </Button>
+                            <TextBlock Text="{Binding QuickProfilesHeader}" Foreground="#94A3B8" FontSize="10.5" FontWeight="Bold" Margin="10,0,0,6"/>
                         </StackPanel>
 
-                        <!-- Quick Stats Card at Bottom of Sidebar -->
-                        <Border DockPanel.Dock="Bottom"
+                        <!-- Dynamic Quick Profiles List (Automatically updates when profiles/rules are added, edited, or deleted) -->
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,0,10">
+                            <StackPanel>
+                                <Button Style="{StaticResource GlassButtonStyle}"
+                                        HorizontalContentAlignment="Left"
+                                        Margin="0,2.5"
+                                        Click="QuickFilterAll_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse Width="8" Height="8" Fill="#E2E8F0" Margin="0,0,9,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding AllProcessesLabel}" FontSize="12"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <ItemsControl x:Name="QuickProfilesItemsControl">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource GlassButtonStyle}"
+                                                    HorizontalContentAlignment="Left"
+                                                    Margin="0,2.5"
+                                                    Tag="{Binding FilterKey}"
+                                                    Click="DynamicQuickProfileBtn_Click">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="8" Height="8" Fill="{Binding DotColor}" Margin="0,0,9,0" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Name}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="165"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <!-- Session Summary Card at Bottom of Sidebar -->
+                        <Border Grid.Row="2"
                                 Background="#24FFFFFF"
                                 BorderBrush="#38FFFFFF"
                                 BorderThickness="1"
-                                CornerRadius="12"
-                                Padding="12,10">
+                                CornerRadius="11"
+                                Padding="12,9">
                             <StackPanel>
-                                <TextBlock Text="RESUMEN DE SESIÓN" Foreground="#CBD5E1" FontSize="10" FontWeight="Bold"/>
-                                <Grid Margin="0,6,0,0">
+                                <TextBlock Text="{Binding SessionSummaryHeader}" Foreground="#CBD5E1" FontSize="10" FontWeight="Bold"/>
+                                <Grid Margin="0,5,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock x:Name="SidebarActiveRulesCount" Text="13" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                                        <TextBlock Text="Reglas Activas" Foreground="#CBD5E1" FontSize="10.5"/>
+                                        <TextBlock x:Name="SidebarActiveRulesCount" Text="16" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding ActiveRulesLabel}" Foreground="#CBD5E1" FontSize="10.5"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock x:Name="SidebarTotalBlockedCount" Text="29" Foreground="#C084FC" FontSize="18" FontWeight="Bold"/>
-                                        <TextBlock Text="Bloqueados" Foreground="#CBD5E1" FontSize="10.5"/>
+                                        <TextBlock Text="{Binding BlockedCountLabel}" Foreground="#CBD5E1" FontSize="10.5"/>
                                     </StackPanel>
                                 </Grid>
                             </StackPanel>
                         </Border>
-                    </DockPanel>
+                    </Grid>
                 </Border>
 
                 <!-- ==================== RIGHT CONTENT PANELS ==================== -->
@@ -258,37 +337,45 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <!-- Header & Toolbar -->
-                        <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                            <StackPanel DockPanel.Dock="Left">
-                                <TextBlock Text="Lista de Tareas Bloqueadas" Foreground="White" FontSize="20" FontWeight="Bold"/>
-                                <TextBlock Text="Intercepta procesos en tiempo real con íconos nativos, búsqueda predictiva y conteo." Foreground="#CBD5E1" FontSize="12.5" Margin="0,2,0,0"/>
+                        <!-- Header & Toolbar (Uses Grid with * and Auto so buttons are NEVER clipped) -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="0,0,14,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding BlockedViewTitle}" Foreground="White" FontSize="19" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding BlockedViewSubtitle}"
+                                           Foreground="#CBD5E1"
+                                           FontSize="12"
+                                           TextWrapping="Wrap"
+                                           Margin="0,2,0,0"/>
                             </StackPanel>
 
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button x:Name="StartStopEngineBtn"
                                         Style="{StaticResource GlassButtonStyle}"
-                                        Margin="0,0,8,0"
+                                        Margin="0,0,7,0"
                                         Click="ToggleEngine_Click"
-                                        Content="⏸ Pausar Motor"/>
+                                        Content="{Binding PauseEngineBtn}"/>
                                 <Button Style="{StaticResource GlassButtonStyle}"
-                                        Margin="0,0,8,0"
+                                        Margin="0,0,7,0"
                                         Click="ImportExportIni_Click"
-                                        ToolTip="Importar o guardar config.ini clásico"
                                         Content="📂 config.ini"/>
                                 <Button Style="{StaticResource AccentButtonStyle}"
                                         Click="OpenAddTaskDialog_Click"
-                                        Content="＋ Agregar Tarea"/>
+                                        Content="{Binding AddTaskBtn}"/>
                             </StackPanel>
-                        </DockPanel>
+                        </Grid>
 
                         <!-- Quick Predictive Add Bar + Action Buttons -->
                         <Border Grid.Row="1"
                                 Background="#22FFFFFF"
                                 BorderBrush="#36FFFFFF"
                                 BorderThickness="1"
-                                CornerRadius="12"
-                                Padding="12,10"
+                                CornerRadius="11"
+                                Padding="11,9"
                                 Margin="0,0,0,12">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -304,11 +391,12 @@
                                              TextChanged="QuickAddProcessBox_TextChanged"
                                              KeyDown="QuickAddProcessBox_KeyDown"/>
                                     <TextBlock x:Name="QuickAddPlaceholder"
-                                               Text="⚡ Escritura predictiva: escribe el nombre de un proceso (ej. adobe, chrome, anydesk.exe) y presiona Enter..."
+                                               Text="{Binding QuickAddPlaceholder}"
                                                Foreground="#94A3B8"
-                                               FontSize="12"
-                                               Margin="12,0,0,0"
+                                               FontSize="11.5"
+                                               Margin="12,0,8,0"
                                                VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
                                                IsHitTestVisible="False"/>
                                     <Popup x:Name="PredictivePopup"
                                            PlacementTarget="{Binding ElementName=QuickAddProcessBox}"
@@ -320,7 +408,7 @@
                                                 BorderThickness="1"
                                                 CornerRadius="8"
                                                 Padding="4"
-                                                Width="460"
+                                                Width="440"
                                                 MaxHeight="210">
                                             <ListBox x:Name="PredictiveSuggestionsList"
                                                      Background="Transparent"
@@ -331,7 +419,7 @@
                                                     <DataTemplate>
                                                         <StackPanel Orientation="Horizontal" Margin="4,3">
                                                             <Image Source="{Binding Icon}" Width="18" Height="18" Margin="0,0,8,0"/>
-                                                            <TextBlock Text="{Binding ProcessName}" FontWeight="SemiBold" Foreground="White" Width="180"/>
+                                                            <TextBlock Text="{Binding ProcessName}" FontWeight="SemiBold" Foreground="White" Width="170"/>
                                                             <TextBlock Text="{Binding Description}" Foreground="#CBD5E1" FontSize="11.5"/>
                                                         </StackPanel>
                                                     </DataTemplate>
@@ -343,18 +431,18 @@
 
                                 <Button Grid.Column="1"
                                         Style="{StaticResource GlassButtonStyle}"
-                                        Margin="0,0,8,0"
+                                        Margin="0,0,7,0"
                                         Click="QuickAddConfirm_Click"
-                                        Content="Bloquear Ahora"/>
+                                        Content="{Binding BlockNowBtn}"/>
                                 <Button Grid.Column="2"
                                         Style="{StaticResource GlassButtonStyle}"
-                                        Margin="0,0,8,0"
+                                        Margin="0,0,7,0"
                                         Click="ResetCounters_Click"
-                                        Content="↺ Reiniciar Conteos"/>
+                                        Content="{Binding ResetCountersBtn}"/>
                                 <Button Grid.Column="3"
                                         Style="{StaticResource GlassButtonStyle}"
                                         Click="RemoveSelectedTask_Click"
-                                        Content="🗑 Eliminar"/>
+                                        Content="{Binding DeleteSelectedBtn}"/>
                             </Grid>
                         </Border>
 
@@ -363,11 +451,11 @@
                                 Background="#1EFFFFFF"
                                 BorderBrush="#35FFFFFF"
                                 BorderThickness="1"
-                                CornerRadius="14"
+                                CornerRadius="12"
                                 Padding="6">
                             <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="34"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
@@ -375,21 +463,20 @@
                                 <Border Grid.Row="0" BorderBrush="#28FFFFFF" BorderThickness="0,0,0,1" Padding="12,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="46"/>
-                                            <ColumnDefinition Width="44"/>
-                                            <ColumnDefinition Width="220"/>
+                                            <ColumnDefinition Width="42"/>
+                                            <ColumnDefinition Width="42"/>
+                                            <ColumnDefinition Width="215"/>
                                             <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="125"/>
-                                            <ColumnDefinition Width="95"/>
-                                            <ColumnDefinition Width="50"/>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="44"/>
                                         </Grid.ColumnDefinitions>
-                                        <CheckBox x:Name="SelectAllCheckBox" Grid.Column="0" VerticalAlignment="Center" IsChecked="True" Click="SelectAllCheckBox_Click" ToolTip="Activar/Desactivar todos"/>
-                                        <TextBlock Grid.Column="1" Text="Icono" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="2" Text="Proceso (.exe)" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="3" Text="Descripción / Ruta" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="4" Text="Perfil / Grupo" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <TextBlock Grid.Column="5" Text="Bloqueados" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                        <TextBlock Grid.Column="6" Text="" Grid.ColumnSpan="1"/>
+                                        <CheckBox x:Name="SelectAllCheckBox" Grid.Column="0" VerticalAlignment="Center" IsChecked="True" Click="SelectAllCheckBox_Click"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding ColIcon}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding ColProcess}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding ColDescription}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding ColProfile}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="5" Text="{Binding ColBlocked}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                     </Grid>
                                 </Border>
 
@@ -414,7 +501,7 @@
                                                                 BorderThickness="1"
                                                                 CornerRadius="9"
                                                                 Padding="12,7"
-                                                                Margin="2,2">
+                                                                Margin="2,2,4,2">
                                                             <ContentPresenter/>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
@@ -437,13 +524,13 @@
                                         <DataTemplate>
                                             <Grid VerticalAlignment="Center">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="46"/>
-                                                    <ColumnDefinition Width="44"/>
-                                                    <ColumnDefinition Width="220"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="215"/>
                                                     <ColumnDefinition Width="*"/>
-                                                    <ColumnDefinition Width="125"/>
-                                                    <ColumnDefinition Width="95"/>
-                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="90"/>
+                                                    <ColumnDefinition Width="44"/>
                                                 </Grid.ColumnDefinitions>
 
                                                 <CheckBox Grid.Column="0"
@@ -457,9 +544,9 @@
                                                        VerticalAlignment="Center"
                                                        HorizontalAlignment="Left"/>
 
-                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ProcessName}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
-                                                    <TextBlock Text="{Binding LastBlockedText, StringFormat='Último: {0}'}" Foreground="#94A3B8" FontSize="10.5"/>
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding ProcessName}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding LastBlockedText}" Foreground="#94A3B8" FontSize="10.5"/>
                                                 </StackPanel>
 
                                                 <TextBlock Grid.Column="3"
@@ -478,7 +565,7 @@
                                                         Padding="8,3"
                                                         HorizontalAlignment="Left"
                                                         VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding ProfileGroup}" Foreground="#E2E8F0" FontSize="11"/>
+                                                    <TextBlock Text="{Binding ProfileGroup}" Foreground="#E2E8F0" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="112"/>
                                                 </Border>
 
                                                 <Border Grid.Column="5"
@@ -486,17 +573,16 @@
                                                         BorderBrush="#66C084FC"
                                                         BorderThickness="1"
                                                         CornerRadius="10"
-                                                        Padding="10,3"
+                                                        Padding="10,2.5"
                                                         HorizontalAlignment="Center"
                                                         VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding BlockedCount}" Foreground="White" FontWeight="Bold" FontSize="12.5"/>
+                                                    <TextBlock Text="{Binding BlockedCount}" Foreground="White" FontWeight="Bold" FontSize="12"/>
                                                 </Border>
 
                                                 <Button Grid.Column="6"
                                                         Content="✕"
                                                         Style="{StaticResource TitleBarButtonStyle}"
                                                         Width="28" Height="28"
-                                                        ToolTip="Quitar de la lista"
                                                         Tag="{Binding}"
                                                         Click="DeleteSingleTaskRow_Click"/>
                                             </Grid>
@@ -507,31 +593,33 @@
                         </Border>
                     </Grid>
 
-                    <!-- ==================== VIEW 2: CONDITIONAL BLOCKING & PROFILES (DEDICATED SECTION) ==================== -->
+                    <!-- ==================== VIEW 2: CONDITIONAL BLOCKING & PROFILES ==================== -->
                     <Grid x:Name="ViewConditionalRules" Visibility="Collapsed">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <DockPanel Grid.Row="0" Margin="0,0,0,14">
-                            <StackPanel DockPanel.Dock="Left">
-                                <TextBlock Text="Bloqueo Condicional y Perfiles de Programas" Foreground="White" FontSize="20" FontWeight="Bold"/>
-                                <TextBlock Text="Bloquea procesos residuales (ej. Adobe IPC / Crash Processor) cuando su programa principal NO está activo, o agrupa por perfiles."
-                                           Foreground="#CBD5E1" FontSize="12.5" Margin="0,2,0,0"/>
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                <TextBlock Text="{Binding CondViewTitle}" Foreground="White" FontSize="19" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CondViewSubtitle}"
+                                           Foreground="#CBD5E1" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
                             </StackPanel>
-                            <Button DockPanel.Dock="Right"
+                            <Button Grid.Column="1"
                                     Style="{StaticResource AccentButtonStyle}"
                                     VerticalAlignment="Center"
                                     Click="CreateNewConditionalRule_Click"
-                                    Content="＋ Nueva Regla / Perfil"/>
-                        </DockPanel>
+                                    Content="{Binding NewRuleBtn}"/>
+                        </Grid>
 
                         <Grid Grid.Row="1">
                             <Grid.ColumnDefinitions>
-                                <!-- Rules Cards List -->
-                                <ColumnDefinition Width="1.25*"/>
-                                <!-- Selected Rule Editor Panel -->
+                                <ColumnDefinition Width="1.2*"/>
                                 <ColumnDefinition Width="1*"/>
                             </Grid.ColumnDefinitions>
 
@@ -540,8 +628,8 @@
                                     Background="#1EFFFFFF"
                                     BorderBrush="#35FFFFFF"
                                     BorderThickness="1"
-                                    CornerRadius="14"
-                                    Padding="10"
+                                    CornerRadius="12"
+                                    Padding="8"
                                     Margin="0,0,12,0">
                                 <ListBox x:Name="ConditionalRulesListBox"
                                          Background="Transparent"
@@ -560,8 +648,9 @@
                                                                 Background="#1CFFFFFF"
                                                                 BorderBrush="#32FFFFFF"
                                                                 BorderThickness="1"
-                                                                CornerRadius="12"
-                                                                Padding="14,12">
+                                                                CornerRadius="11"
+                                                                Padding="13,11"
+                                                                Margin="2,1,4,1">
                                                             <ContentPresenter/>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
@@ -582,28 +671,37 @@
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel>
-                                                <DockPanel>
-                                                    <CheckBox DockPanel.Dock="Left"
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox Grid.Column="0"
                                                               IsChecked="{Binding IsEnabled, Mode=TwoWay}"
                                                               VerticalAlignment="Center"
                                                               Margin="0,0,10,0"
                                                               Click="ConditionalRuleToggle_Click"/>
-                                                    <Border DockPanel.Dock="Right"
+                                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <Ellipse Width="9" Height="9" Fill="{Binding BadgeColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Bold" FontSize="13.5" TextTrimming="CharacterEllipsis"/>
+                                                    </StackPanel>
+                                                    <Border Grid.Column="2"
                                                             Background="#30FFFFFF"
                                                             CornerRadius="8"
-                                                            Padding="8,3">
-                                                        <TextBlock Text="{Binding CurrentStateText}" Foreground="#E2E8F0" FontSize="11" FontWeight="SemiBold"/>
+                                                            Padding="8,3"
+                                                            Margin="6,0,0,0">
+                                                        <TextBlock Text="{Binding CurrentStateText}" Foreground="#E2E8F0" FontSize="10.5" FontWeight="SemiBold"/>
                                                     </Border>
-                                                    <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                                                </DockPanel>
+                                                </Grid>
 
-                                                <TextBlock Text="{Binding Description}" Foreground="#CBD5E1" FontSize="12" TextWrapping="Wrap" Margin="26,4,0,8"/>
+                                                <TextBlock Text="{Binding Description}" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap" Margin="26,4,0,7"/>
 
-                                                <Border Background="#18000000" CornerRadius="8" Padding="10,7" Margin="26,0,0,0">
+                                                <Border Background="#1A000000" CornerRadius="8" Padding="10,6" Margin="26,0,0,0">
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding ModeDisplayName}" Foreground="#C084FC" FontSize="11.5" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding AnchorListSummary, StringFormat='🎯 Si activo(s): {0}'}" Foreground="#E2E8F0" FontSize="11" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding TargetListSummary, StringFormat='🚫 Bloquear: {0}'}" Foreground="#FCA5A5" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding ModeDisplayName}" Foreground="#C084FC" FontSize="11" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding AnchorListSummary}" Foreground="#E2E8F0" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Text="{Binding TargetListSummary}" Foreground="#FCA5A5" FontSize="11" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
                                                     </StackPanel>
                                                 </Border>
                                             </StackPanel>
@@ -617,53 +715,52 @@
                                     Background="#22FFFFFF"
                                     BorderBrush="#38FFFFFF"
                                     BorderThickness="1"
-                                    CornerRadius="14"
-                                    Padding="16">
+                                    CornerRadius="12"
+                                    Padding="15">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel x:Name="RuleEditorPanel">
-                                        <TextBlock Text="Configurar Regla / Perfil" Foreground="White" FontSize="15" FontWeight="Bold" Margin="0,0,0,10"/>
+                                    <StackPanel x:Name="RuleEditorPanel" Margin="0,0,4,0">
+                                        <TextBlock Text="{Binding EditorHeader}" Foreground="White" FontSize="15" FontWeight="Bold" Margin="0,0,0,10"/>
 
-                                        <TextBlock Text="Nombre del Perfil o Regla:" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="RuleNameBox" Style="{StaticResource GlassTextBoxStyle}" Margin="0,0,0,10"/>
+                                        <TextBlock Text="{Binding RuleNameLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="RuleNameBox" Style="{StaticResource GlassTextBoxStyle}" Margin="0,0,0,8"/>
 
-                                        <TextBlock Text="Modo de Comportamiento:" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="RuleModeCombo" Margin="0,0,0,10" Padding="8,6" SelectedIndex="0">
-                                            <ComboBoxItem Content="Bloquear procesos hijos cuando el programa padre NO esté activo"/>
-                                            <ComboBoxItem Content="Bloquear procesos objetivo SOLO cuando el programa padre ESTÉ activo"/>
-                                            <ComboBoxItem Content="Perfil / Paquete directo (Bloquear todo el grupo siempre)"/>
+                                        <TextBlock Text="{Binding RuleDescLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="RuleDescBox" Style="{StaticResource GlassTextBoxStyle}" Margin="0,0,0,8"/>
+
+                                        <TextBlock Text="{Binding RuleModeLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="RuleModeCombo" Margin="0,0,0,8" Padding="8,5" SelectedIndex="0">
+                                            <ComboBoxItem Content="{Binding ModeOptionInactive}"/>
+                                            <ComboBoxItem Content="{Binding ModeOptionActive}"/>
+                                            <ComboBoxItem Content="{Binding ModeOptionAlways}"/>
                                         </ComboBox>
 
                                         <CheckBox x:Name="RuleKillOnExitCheck"
-                                                  Content="Cerrar residuos automáticamente al cerrar el programa principal"
+                                                  Content="{Binding KillOnExitLabel}"
                                                   Foreground="White"
                                                   IsChecked="True"
-                                                  Margin="0,0,0,12"/>
+                                                  Margin="0,0,0,10"/>
 
-                                        <TextBlock Text="Programas Principales (Padres / Ancla, separados por coma):"
-                                                   Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
-                                        <TextBlock Text="Ej: Photoshop.exe, Illustrator.exe, Premiere Pro.exe"
-                                                   Foreground="#94A3B8" FontSize="11" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="RuleAnchorsBox" Style="{StaticResource GlassTextBoxStyle}" Margin="0,0,0,12"/>
+                                        <TextBlock Text="{Binding AnchorsLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,2"/>
+                                        <TextBlock Text="{Binding AnchorsHint}" Foreground="#94A3B8" FontSize="11" Margin="0,0,0,4"/>
+                                        <TextBox x:Name="RuleAnchorsBox" Style="{StaticResource GlassTextBoxStyle}" Margin="0,0,0,10"/>
 
-                                        <TextBlock Text="Procesos Dependientes a Bloquear (separados por coma):"
-                                                   Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
-                                        <TextBlock Text="Ej: adobe crash processor.exe, adobeipcbroker.exe, ccxprocess.exe"
-                                                   Foreground="#94A3B8" FontSize="11" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding TargetsLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,2"/>
+                                        <TextBlock Text="{Binding TargetsHint}" Foreground="#94A3B8" FontSize="11" Margin="0,0,0,4"/>
                                         <TextBox x:Name="RuleTargetsBox"
                                                  Style="{StaticResource GlassTextBoxStyle}"
-                                                 Height="72"
+                                                 Height="68"
                                                  TextWrapping="Wrap"
                                                  AcceptsReturn="True"
-                                                 Margin="0,0,0,14"/>
+                                                 Margin="0,0,0,12"/>
 
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                             <Button Style="{StaticResource GlassButtonStyle}"
                                                     Margin="0,0,8,0"
                                                     Click="DeleteConditionalRule_Click"
-                                                    Content="Eliminar Regla"/>
+                                                    Content="{Binding DeleteRuleBtn}"/>
                                             <Button Style="{StaticResource AccentButtonStyle}"
                                                     Click="SaveConditionalRuleChanges_Click"
-                                                    Content="Guardar Cambios"/>
+                                                    Content="{Binding SaveRuleBtn}"/>
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
@@ -678,29 +775,33 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                            <StackPanel DockPanel.Dock="Left">
-                                <TextBlock Text="Gestor de Inicio Automático de Windows" Foreground="White" FontSize="20" FontWeight="Bold"/>
-                                <TextBlock Text="Habilita, deshabilita o agrega aplicaciones que arrancan junto con Windows (Registro HKCU/HKLM y Carpeta Startup)."
-                                           Foreground="#CBD5E1" FontSize="12.5" Margin="0,2,0,0"/>
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                                <TextBlock Text="{Binding StartupViewTitle}" Foreground="White" FontSize="19" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding StartupViewSubtitle}"
+                                           Foreground="#CBD5E1" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
                             </StackPanel>
 
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Button Style="{StaticResource GlassButtonStyle}"
                                         Margin="0,0,8,0"
                                         Click="RefreshStartupItems_Click"
-                                        Content="🔄 Actualizar"/>
+                                        Content="{Binding RefreshBtn}"/>
                                 <Button Style="{StaticResource AccentButtonStyle}"
                                         Click="AddStartupProgram_Click"
-                                        Content="＋ Agregar al Inicio"/>
+                                        Content="{Binding AddStartupBtn}"/>
                             </StackPanel>
-                        </DockPanel>
+                        </Grid>
 
                         <Border Grid.Row="1"
                                 Background="#1EFFFFFF"
                                 BorderBrush="#35FFFFFF"
                                 BorderThickness="1"
-                                CornerRadius="14"
+                                CornerRadius="12"
                                 Padding="8">
                             <ListBox x:Name="StartupItemsListBox"
                                      Background="Transparent"
@@ -719,7 +820,7 @@
                                                             BorderThickness="1"
                                                             CornerRadius="10"
                                                             Padding="14,9"
-                                                            Margin="2">
+                                                            Margin="2,1,4,1">
                                                         <ContentPresenter/>
                                                     </Border>
                                                 </ControlTemplate>
@@ -732,12 +833,12 @@
                                     <DataTemplate>
                                         <Grid VerticalAlignment="Center">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="46"/>
+                                                <ColumnDefinition Width="42"/>
                                                 <ColumnDefinition Width="42"/>
                                                 <ColumnDefinition Width="210"/>
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="170"/>
-                                                <ColumnDefinition Width="50"/>
+                                                <ColumnDefinition Width="44"/>
                                             </Grid.ColumnDefinitions>
 
                                             <CheckBox Grid.Column="0"
@@ -748,8 +849,8 @@
 
                                             <Image Grid.Column="1" Source="{Binding Icon}" Width="26" Height="26" VerticalAlignment="Center" HorizontalAlignment="Left"/>
 
-                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="13"/>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                <TextBlock Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
                                                 <TextBlock Text="{Binding StatusText}" Foreground="#A855F7" FontSize="11"/>
                                             </StackPanel>
 
@@ -774,7 +875,6 @@
                                                     Content="🗑"
                                                     Style="{StaticResource TitleBarButtonStyle}"
                                                     Tag="{Binding}"
-                                                    ToolTip="Eliminar del inicio"
                                                     Click="DeleteStartupItem_Click"/>
                                         </Grid>
                                     </DataTemplate>
@@ -786,90 +886,105 @@
                     <!-- ==================== VIEW 4: PREFERENCES & GLASS CUSTOMIZATION ==================== -->
                     <Grid x:Name="ViewPreferences" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.15*"/>
-                            <ColumnDefinition Width="0.85*"/>
+                            <ColumnDefinition Width="1.12*"/>
+                            <ColumnDefinition Width="0.88*"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- Left: Classic + Modern Preferences -->
+                        <!-- Left: System Preferences -->
                         <Border Grid.Column="0"
                                 Background="#20FFFFFF"
                                 BorderBrush="#35FFFFFF"
                                 BorderThickness="1"
-                                CornerRadius="14"
-                                Padding="18"
+                                CornerRadius="12"
+                                Padding="16"
                                 Margin="0,0,12,0">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <StackPanel>
-                                    <TextBlock Text="Preferencias del Sistema" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
+                                <StackPanel Margin="0,0,4,0">
+                                    <TextBlock Text="{Binding PrefsTitle}" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,12"/>
 
-                                    <TextBlock Text="OPCIONES GENERALES" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,4,0,6"/>
-                                    <CheckBox x:Name="PrefLaunchStartup" Content="Iniciar Task Blocker automáticamente con Windows" Foreground="White" Margin="0,4"/>
-                                    <CheckBox x:Name="PrefShowForeground" Content="Mostrar ventana en primer plano al iniciar (desmarcar para iniciar en bandeja)" Foreground="White" Margin="0,4"/>
-                                    <CheckBox x:Name="PrefMinimizeTray" Content="Minimizar a la bandeja del sistema (System Tray) al cerrar" Foreground="White" Margin="0,4"/>
+                                    <TextBlock Text="{Binding GeneralSection}" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,2,0,6"/>
+                                    <CheckBox x:Name="PrefLaunchStartup" Content="{Binding PrefLaunchStartup}" Foreground="White" Margin="0,4"/>
+                                    <CheckBox x:Name="PrefShowForeground" Content="{Binding PrefShowForeground}" Foreground="White" Margin="0,4"/>
+                                    <CheckBox x:Name="PrefMinimizeTray" Content="{Binding PrefMinimizeTray}" Foreground="White" Margin="0,4"/>
 
-                                    <Separator Background="#28FFFFFF" Margin="0,12"/>
+                                    <Separator Background="#28FFFFFF" Margin="0,10"/>
 
-                                    <TextBlock Text="MOTOR DE TAREAS Y MONITOREO" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
-                                    <CheckBox x:Name="PrefStartMonitoring" Content="Iniciar monitoreo automáticamente al abrir la aplicación" Foreground="White" Margin="0,4"/>
-                                    <CheckBox x:Name="PrefShowNotification" Content="Mostrar notificación cuando se bloquee un proceso" Foreground="White" Margin="0,4"/>
-                                    <CheckBox x:Name="PrefMonitorModeOnly" Content="Modo Monitor (solo contar y registrar sin terminar los procesos)" Foreground="White" Margin="0,4"/>
-                                    <CheckBox x:Name="PrefFastRealtime" Content="Intercepción en tiempo real de bajo consumo (Eventos WMI + Snapshot rápido)" Foreground="White" Margin="0,4"/>
+                                    <TextBlock Text="{Binding EngineSection}" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
+                                    <CheckBox x:Name="PrefStartMonitoring" Content="{Binding PrefStartMonitoring}" Foreground="White" Margin="0,4"/>
+                                    <CheckBox x:Name="PrefShowNotification" Content="{Binding PrefShowNotification}" Foreground="White" Margin="0,4"/>
+                                    <CheckBox x:Name="PrefMonitorModeOnly" Content="{Binding PrefMonitorMode}" Foreground="White" Margin="0,4"/>
+                                    <CheckBox x:Name="PrefFastRealtime" Content="{Binding PrefRealtime}" Foreground="White" Margin="0,4"/>
 
-                                    <Separator Background="#28FFFFFF" Margin="0,12"/>
+                                    <Separator Background="#28FFFFFF" Margin="0,10"/>
 
-                                    <TextBlock Text="REGISTRO EN ARCHIVO (LOG)" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
-                                    <CheckBox x:Name="PrefEnableLog" Content="Habilitar guardado de historial en archivo (taskblocker.log)" Foreground="White" Margin="0,4"/>
+                                    <TextBlock Text="{Binding LogSection}" Foreground="#C084FC" FontSize="11" FontWeight="Bold" Margin="0,0,0,6"/>
+                                    <CheckBox x:Name="PrefEnableLog" Content="{Binding PrefEnableLog}" Foreground="White" Margin="0,4"/>
                                     <StackPanel Orientation="Horizontal" Margin="0,6">
-                                        <CheckBox x:Name="PrefWarnLogSize" Content="Advertir si el archivo supera (MB):" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                        <CheckBox x:Name="PrefWarnLogSize" Content="{Binding PrefWarnLogSize}" Foreground="White" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                         <TextBox x:Name="PrefMaxLogMbBox" Style="{StaticResource GlassTextBoxStyle}" Width="70" Text="15.0"/>
                                     </StackPanel>
                                     <StackPanel Orientation="Horizontal" Margin="0,6">
-                                        <TextBlock Text="Editor de log por defecto:" Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                        <TextBox x:Name="PrefLogEditorBox" Style="{StaticResource GlassTextBoxStyle}" Width="180" Text="notepad.exe"/>
-                                        <Button Style="{StaticResource GlassButtonStyle}" Margin="8,0,0,0" Click="OpenLogFile_Click" Content="Abrir Log"/>
+                                        <TextBlock Text="{Binding DefaultLogEditorLabel}" Foreground="#CBD5E1" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <TextBox x:Name="PrefLogEditorBox" Style="{StaticResource GlassTextBoxStyle}" Width="155" Text="notepad.exe"/>
+                                        <Button Style="{StaticResource GlassButtonStyle}" Margin="8,0,0,0" Click="OpenLogFile_Click" Content="{Binding OpenLogBtn}"/>
                                     </StackPanel>
 
                                     <Button Style="{StaticResource AccentButtonStyle}"
                                             HorizontalAlignment="Left"
-                                            Margin="0,16,0,0"
+                                            Margin="0,14,0,0"
                                             Click="SavePreferences_Click"
-                                            Content="💾 Aplicar y Guardar Preferencias"/>
+                                            Content="{Binding SavePrefsBtn}"/>
                                 </StackPanel>
                             </ScrollViewer>
                         </Border>
 
-                        <!-- Right: Translucent Glass & Live Activity Log -->
+                        <!-- Right: Crystal Customization (4 Finishes + Opacity Slider) & Live Activity Log -->
                         <Grid Grid.Column="1">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Glass Customization Card -->
+                            <!-- Crystal Appearance Card -->
                             <Border Grid.Row="0"
                                     Background="#20FFFFFF"
                                     BorderBrush="#35FFFFFF"
                                     BorderThickness="1"
-                                    CornerRadius="14"
-                                    Padding="16"
+                                    CornerRadius="12"
+                                    Padding="15"
                                     Margin="0,0,0,12">
                                 <StackPanel>
-                                    <TextBlock Text="✨ Apariencia Acrílica (Estilo example.jpg / Wintoys)" Foreground="White" FontSize="14.5" FontWeight="Bold" Margin="0,0,0,8"/>
-                                    <TextBlock Text="Ajusta el nivel de transparencia del cristal y el tinte de fondo en tiempo real:" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding CrystalTitle}" Foreground="White" FontSize="14.5" FontWeight="Bold" Margin="0,0,0,6"/>
+                                    <TextBlock Text="{Binding CrystalSubtitle}" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
-                                    <DockPanel Margin="0,4">
-                                        <TextBlock Text="Opacidad del Cristal:" Foreground="White" Width="130"/>
+                                    <Grid Margin="0,2,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="42"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding CrystalOpacityLabel}" Foreground="White" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
                                         <Slider x:Name="GlassOpacitySlider"
-                                                Minimum="0.25" Maximum="0.95" Value="0.72"
+                                                Grid.Column="1"
+                                                Minimum="0.30" Maximum="0.95" Value="0.76"
                                                 VerticalAlignment="Center"
                                                 ValueChanged="GlassOpacitySlider_ValueChanged"/>
-                                    </DockPanel>
+                                        <TextBlock x:Name="GlassOpacityPercentText"
+                                                   Grid.Column="2"
+                                                   Text="76%"
+                                                   Foreground="#C084FC"
+                                                   FontWeight="Bold"
+                                                   FontSize="12"
+                                                   HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
 
-                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                                        <Button Style="{StaticResource GlassButtonStyle}" Margin="0,0,6,0" Click="ThemeNebula_Click" Content="🔮 Nebulosa (example.jpg)"/>
-                                        <Button Style="{StaticResource GlassButtonStyle}" Margin="0,0,6,0" Click="ThemeWintoys_Click" Content="🌑 Cristal Wintoys"/>
-                                        <Button Style="{StaticResource GlassButtonStyle}" Click="ThemeCyan_Click" Content="❄️ Cian Ártico"/>
-                                    </StackPanel>
+                                    <UniformGrid Columns="2" Rows="2">
+                                        <Button x:Name="BtnThemeNebula" Style="{StaticResource GlassButtonStyle}" Margin="0,0,5,6" Click="ThemeNebula_Click" Content="{Binding ThemePurpleNebula}"/>
+                                        <Button x:Name="BtnThemeDark" Style="{StaticResource GlassButtonStyle}" Margin="5,0,0,6" Click="ThemeMidnightDark_Click" Content="{Binding ThemeMidnightDark}"/>
+                                        <Button x:Name="BtnThemeWindowsBlue" Style="{StaticResource GlassButtonStyle}" Margin="0,0,5,0" Click="ThemeWindowsBlue_Click" Content="{Binding ThemeWindowsBlue}"/>
+                                        <Button x:Name="BtnThemeCyan" Style="{StaticResource GlassButtonStyle}" Margin="5,0,0,0" Click="ThemeCyan_Click" Content="{Binding ThemeArcticCyan}"/>
+                                    </UniformGrid>
                                 </StackPanel>
                             </Border>
 
@@ -878,14 +993,14 @@
                                     Background="#20FFFFFF"
                                     BorderBrush="#35FFFFFF"
                                     BorderThickness="1"
-                                    CornerRadius="14"
+                                    CornerRadius="12"
                                     Padding="14">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="*"/>
                                     </Grid.RowDefinitions>
-                                    <TextBlock Grid.Row="0" Text="Actividad Reciente en Tiempo Real" Foreground="White" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
+                                    <TextBlock Grid.Row="0" Text="{Binding ActivityFeedTitle}" Foreground="White" FontSize="14" FontWeight="Bold" Margin="0,0,0,8"/>
                                     <ListBox x:Name="ActivityFeedListBox"
                                              Grid.Row="1"
                                              Background="Transparent"
@@ -897,19 +1012,158 @@
                         </Grid>
                     </Grid>
 
-                    <!-- ==================== MODAL OVERLAY: ADD TASK (MANUAL / FILE / ACTIVE PROCESS WITH PREDICTIVE SEARCH) ==================== -->
+                    <!-- ==================== VIEW 5: ABOUT & CREDITS (INSPIRED BY USER'S SHOWCASE CARD) ==================== -->
+                    <Grid x:Name="ViewAboutCredits" Visibility="Collapsed">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <!-- Main Showcase Credits Card (Matches image_2.png layout & aesthetic) -->
+                                <Border Background="#D80B111E"
+                                        BorderBrush="#38567698"
+                                        BorderThickness="1.2"
+                                        CornerRadius="14"
+                                        Padding="26,24"
+                                        Margin="0,0,0,16">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="96"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Left Glowing App Emblem -->
+                                        <Border Grid.Column="0"
+                                                Width="76" Height="76"
+                                                CornerRadius="16"
+                                                Background="#18A855F7"
+                                                BorderBrush="#45C084FC"
+                                                BorderThickness="1"
+                                                VerticalAlignment="Center"
+                                                HorizontalAlignment="Left">
+                                            <Image Source="pack://application:,,,/Assets/logo.png"
+                                                   Width="56" Height="56"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        </Border>
+
+                                        <!-- Center Content & Credits -->
+                                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                            <!-- Title + Pill Badge Row -->
+                                            <WrapPanel VerticalAlignment="Center" Margin="0,0,0,10">
+                                                <TextBlock Text="{Binding AboutHeaderTitle}"
+                                                           Foreground="#38BDF8"
+                                                           FontSize="17"
+                                                           FontWeight="Bold"
+                                                           VerticalAlignment="Center"
+                                                           Margin="0,0,12,4"/>
+                                                <Border Background="#1838BDF8"
+                                                        BorderBrush="#5538BDF8"
+                                                        BorderThickness="1"
+                                                        CornerRadius="11"
+                                                        Padding="11,3"
+                                                        Margin="0,0,0,4">
+                                                    <TextBlock Text="{Binding AboutBadgeText}"
+                                                               Foreground="#7DD3FC"
+                                                               FontSize="11.5"
+                                                               FontWeight="SemiBold"/>
+                                                </Border>
+                                            </WrapPanel>
+
+                                            <!-- Main Description -->
+                                            <TextBlock Text="{Binding AboutDescription}"
+                                                       Foreground="#F1F5F9"
+                                                       FontSize="13.5"
+                                                       LineHeight="20"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,0,0,10"/>
+
+                                            <!-- Disclaimer -->
+                                            <TextBlock Text="{Binding AboutDisclaimer}"
+                                                       Foreground="#94A3B8"
+                                                       FontSize="11.5"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,0,0,14"/>
+
+                                            <!-- Crafted by Irving Ngr Pill Badge with Crisp Vector Venezuelan Flag -->
+                                            <Border Background="#181E293B"
+                                                    BorderBrush="#38475569"
+                                                    BorderThickness="1"
+                                                    CornerRadius="9"
+                                                    Padding="13,7"
+                                                    HorizontalAlignment="Left">
+                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding CraftedByPrefix}" Foreground="#E2E8F0" FontSize="12.5" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBlock Text="Irving Ngr" Foreground="White" FontSize="12.5" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                                                    <!-- Crisp Vector Venezuelan Flag (Yellow / Blue with white stars arc / Red) -->
+                                                    <Border Width="22" Height="15" CornerRadius="2" ClipToBounds="True" BorderBrush="#50FFFFFF" BorderThickness="0.8" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                        <Grid>
+                                                            <Grid.RowDefinitions>
+                                                                <RowDefinition Height="*"/>
+                                                                <RowDefinition Height="*"/>
+                                                                <RowDefinition Height="*"/>
+                                                            </Grid.RowDefinitions>
+                                                            <Rectangle Grid.Row="0" Fill="#FACC15"/>
+                                                            <Grid Grid.Row="1" Background="#1D4ED8">
+                                                                <Path Data="M5,4 A6,4 0 0,1 17,4"
+                                                                      Stroke="White"
+                                                                      StrokeThickness="1.1"
+                                                                      StrokeDashArray="1,1.2"/>
+                                                            </Grid>
+                                                            <Rectangle Grid.Row="2" Fill="#DC2626"/>
+                                                        </Grid>
+                                                    </Border>
+
+                                                    <TextBlock Text="{Binding PoweredBySuffix}"
+                                                               Foreground="#94A3B8"
+                                                               FontSize="11.5"
+                                                               VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Version Control & Architecture Details Grid -->
+                                <UniformGrid Columns="3">
+                                    <Border Background="#1EFFFFFF" BorderBrush="#32FFFFFF" BorderThickness="1" CornerRadius="11" Padding="15" Margin="0,0,8,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding CardVersionHeader}" Foreground="#C084FC" FontSize="10.5" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding CardVersionTitle}" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,4"/>
+                                            <TextBlock Text="{Binding CardVersionDesc}" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="#1EFFFFFF" BorderBrush="#32FFFFFF" BorderThickness="1" CornerRadius="11" Padding="15" Margin="4,0,4,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding CardAuthorHeader}" Foreground="#38BDF8" FontSize="10.5" FontWeight="Bold"/>
+                                            <TextBlock Text="Irving Ngr" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,4"/>
+                                            <TextBlock Text="GitHub: github.com/irvingngr/win-task-blocker" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Background="#1EFFFFFF" BorderBrush="#32FFFFFF" BorderThickness="1" CornerRadius="11" Padding="15" Margin="8,0,0,0">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding CardBilingualHeader}" Foreground="#4ADE80" FontSize="10.5" FontWeight="Bold"/>
+                                            <TextBlock Text="English &amp; Español" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,4,0,4"/>
+                                            <TextBlock Text="{Binding CardBilingualDesc}" Foreground="#CBD5E1" FontSize="11.5" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- ==================== MODAL OVERLAY: ADD TASK ==================== -->
                     <Border x:Name="AddTaskOverlay"
                             Visibility="Collapsed"
                             Background="#B8090D16"
-                            CornerRadius="14"
-                            Padding="24">
-                        <Border Background="#F01E1638"
+                            CornerRadius="12"
+                            Padding="20">
+                        <Border Background="#F21E1638"
                                 BorderBrush="#66C084FC"
                                 BorderThickness="1.5"
-                                CornerRadius="16"
+                                CornerRadius="14"
                                 MaxWidth="760"
                                 MaxHeight="560"
-                                Padding="22">
+                                Padding="20">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -919,12 +1173,16 @@
                                 </Grid.RowDefinitions>
 
                                 <!-- Modal Header -->
-                                <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                                    <TextBlock Text="Agregar Proceso a la Lista de Bloqueo" Foreground="White" FontSize="17" FontWeight="Bold"/>
-                                    <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource TitleBarButtonStyle}" HorizontalAlignment="Right" Click="CloseAddTaskDialog_Click"/>
-                                </DockPanel>
+                                <Grid Grid.Row="0" Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="{Binding ModalTitle}" Foreground="White" FontSize="16.5" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Content="✕" Style="{StaticResource TitleBarButtonStyle}" Click="CloseAddTaskDialog_Click"/>
+                                </Grid>
 
-                                <!-- 3 Classic Modes upgraded with Predictive Search & File Picker -->
+                                <!-- Predictive Search & File Picker -->
                                 <Grid Grid.Row="1" Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -932,7 +1190,7 @@
                                     </Grid.ColumnDefinitions>
 
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Nombre del ejecutable o filtro predictivo en procesos activos:" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
+                                        <TextBlock Text="{Binding ModalSearchLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
                                         <TextBox x:Name="ModalProcessInputBox"
                                                  Style="{StaticResource GlassTextBoxStyle}"
                                                  TextChanged="ModalProcessInputBox_TextChanged"/>
@@ -942,14 +1200,14 @@
                                         <Button Style="{StaticResource GlassButtonStyle}"
                                                 Margin="0,0,8,0"
                                                 Click="BrowseExeFile_Click"
-                                                Content="📁 Desde Archivo (.exe)..."/>
+                                                Content="{Binding BrowseFileBtn}"/>
                                         <Button Style="{StaticResource GlassButtonStyle}"
                                                 Click="RefreshActiveProcessesModal_Click"
-                                                Content="🔄 Refrescar Activos"/>
+                                                Content="{Binding RefreshActiveBtn}"/>
                                     </StackPanel>
                                 </Grid>
 
-                                <!-- Active Processes Table with Real Icons & Predictive Filtering -->
+                                <!-- Active Processes Table -->
                                 <Border Grid.Row="2"
                                         Background="#22FFFFFF"
                                         BorderBrush="#38FFFFFF"
@@ -969,11 +1227,11 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="85"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Grid.Column="0" Text="Icono" Foreground="#94A3B8" FontSize="11"/>
-                                            <TextBlock Grid.Column="1" Text="Nombre" Foreground="#94A3B8" FontSize="11"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding ColIcon}" Foreground="#94A3B8" FontSize="11"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding ColProcess}" Foreground="#94A3B8" FontSize="11"/>
                                             <TextBlock Grid.Column="2" Text="PID" Foreground="#94A3B8" FontSize="11"/>
-                                            <TextBlock Grid.Column="3" Text="Descripción" Foreground="#94A3B8" FontSize="11"/>
-                                            <TextBlock Grid.Column="4" Text="Memoria" Foreground="#94A3B8" FontSize="11"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding ColDescription}" Foreground="#94A3B8" FontSize="11"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding ColMemory}" Foreground="#94A3B8" FontSize="11"/>
                                         </Grid>
 
                                         <ListBox x:Name="ActiveProcessesModalList"
@@ -995,7 +1253,7 @@
                                                             <ColumnDefinition Width="85"/>
                                                         </Grid.ColumnDefinitions>
                                                         <Image Grid.Column="0" Source="{Binding Icon}" Width="20" Height="20" HorizontalAlignment="Left"/>
-                                                        <TextBlock Grid.Column="1" Text="{Binding ProcessName}" Foreground="White" FontWeight="SemiBold" FontSize="12.5"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding ProcessName}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Grid.Column="2" Text="{Binding Id}" Foreground="#CBD5E1" FontSize="12"/>
                                                         <TextBlock Grid.Column="3" Text="{Binding Description}" Foreground="#CBD5E1" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Grid.Column="4" Text="{Binding MemoryText}" Foreground="#A855F7" FontSize="11.5"/>
@@ -1007,16 +1265,21 @@
                                 </Border>
 
                                 <!-- Modal Footer -->
-                                <DockPanel Grid.Row="3" Margin="0,14,0,0">
+                                <Grid Grid.Row="3" Margin="0,14,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="ActiveProcessCountLabel"
-                                               Text="Procesos activos: 0"
+                                               Grid.Column="0"
+                                               Text="Active processes: 0"
                                                Foreground="#CBD5E1"
                                                VerticalAlignment="Center"/>
-                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <Button Style="{StaticResource GlassButtonStyle}" Margin="0,0,10,0" Click="CloseAddTaskDialog_Click" Content="Cancelar"/>
-                                        <Button Style="{StaticResource AccentButtonStyle}" Click="ConfirmAddTaskFromModal_Click" Content="＋ Agregar a Bloqueados"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <Button Style="{StaticResource GlassButtonStyle}" Margin="0,0,10,0" Click="CloseAddTaskDialog_Click" Content="{Binding CancelBtn}"/>
+                                        <Button Style="{StaticResource AccentButtonStyle}" Click="ConfirmAddTaskFromModal_Click" Content="{Binding ConfirmAddBtn}"/>
                                     </StackPanel>
-                                </DockPanel>
+                                </Grid>
                             </Grid>
                         </Border>
                     </Border>
@@ -1030,20 +1293,24 @@
                     BorderBrush="#24FFFFFF"
                     BorderThickness="0,1,0,0"
                     Padding="16,0">
-                <DockPanel VerticalAlignment="Center">
+                <Grid VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
                     <TextBlock x:Name="FooterStatusText"
-                               DockPanel.Dock="Left"
-                               Text="Estado: Ejecutando motor de intercepción en tiempo real (Bajo uso de CPU)."
+                               Grid.Column="0"
+                               Text="{Binding FooterStatusRunning}"
                                Foreground="#CBD5E1"
-                               FontSize="11.5"/>
+                               FontSize="11.5"
+                               TextTrimming="CharacterEllipsis"/>
                     <TextBlock x:Name="FooterBlockedSummaryText"
-                               DockPanel.Dock="Right"
-                               Text="Total Bloqueados: 29"
+                               Grid.Column="1"
+                               Text="Blocked Tasks: 29"
                                Foreground="White"
                                FontWeight="SemiBold"
-                               FontSize="11.5"
-                               HorizontalAlignment="Right"/>
-                </DockPanel>
+                               FontSize="11.5"/>
+                </Grid>
             </Border>
         </Grid>
     </Border>

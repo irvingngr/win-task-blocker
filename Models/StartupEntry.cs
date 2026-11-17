@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
+using WinTaskBlocker.Services;
 
 namespace WinTaskBlocker.Models;
 
@@ -70,7 +71,21 @@ public class StartupEntry : INotifyPropertyChanged
         set { _icon = value; OnPropertyChanged(); }
     }
 
-    public string StatusText => IsEnabled ? "Habilitado" : "Deshabilitado";
+    public string StatusText
+    {
+        get
+        {
+            bool es = LocalizationService.Instance.IsSpanish;
+            return IsEnabled
+                ? (es ? "Habilitado" : "Enabled")
+                : (es ? "Deshabilitado" : "Disabled");
+        }
+    }
+
+    public void RefreshLocalization()
+    {
+        OnPropertyChanged(nameof(StatusText));
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([CallerMemberName] string? name = null) =>
@@ -85,4 +100,12 @@ public class ActiveProcessInfo
     public string ExecutablePath { get; set; } = string.Empty;
     public string MemoryText { get; set; } = string.Empty;
     public ImageSource? Icon { get; set; }
+}
+
+public class QuickProfileSidebarItem
+{
+    public string Name { get; set; } = string.Empty;
+    public string FilterKey { get; set; } = string.Empty;
+    public string DotColor { get; set; } = "#A855F7";
+    public bool IsSelected { get; set; }
 }

@@ -1,26 +1,14 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using WinTaskBlocker.Services;
 
 namespace WinTaskBlocker.Models;
 
 public enum ConditionalRuleMode
 {
-    /// <summary>
-    /// Bloquea los procesos objetivo cuando NINGUNO de los procesos padres/ancla está activo.
-    /// (Ej. Bloquear adobeipcbroker.exe y ccxprocess.exe cuando Photoshop/Premiere están cerrados).
-    /// </summary>
     BlockWhenParentInactive,
-
-    /// <summary>
-    /// Bloquea los procesos objetivo SOLO cuando alguno de los procesos padres está activo.
-    /// (Ej. Modo Juego: bloquear actualizadores pesados mientras juegas).
-    /// </summary>
     BlockWhenParentActive,
-
-    /// <summary>
-    /// Paquete/Perfil directo: bloquea todos los procesos del grupo siempre que el perfil esté activo.
-    /// </summary>
     ProfileAlwaysBlock
 }
 
@@ -33,7 +21,6 @@ public class ConditionalRule : INotifyPropertyChanged
     private bool _isEnabled = true;
     private bool _killOnParentExit = true;
     private ConditionalRuleMode _mode = ConditionalRuleMode.BlockWhenParentInactive;
-    private string _currentStateText = "Vigilando";
     private bool _isParentCurrentlyRunning;
     private int _totalBlockedByRule;
 
@@ -64,7 +51,7 @@ public class ConditionalRule : INotifyPropertyChanged
     public bool IsEnabled
     {
         get => _isEnabled;
-        set { _isEnabled = value; OnPropertyChanged(); }
+        set { _isEnabled = value; OnPropertyChanged(); OnPropertyChanged(nameof(CurrentStateText)); }
     }
 
     public bool KillOnParentExit
@@ -76,31 +63,28 @@ public class ConditionalRule : INotifyPropertyChanged
     public ConditionalRuleMode Mode
     {
         get => _mode;
-        set { _mode = value; OnPropertyChanged(); OnPropertyChanged(nameof(ModeDisplayName)); }
+        set
+        {
+            _mode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ModeDisplayName));
+            OnPropertyChanged(nameof(CurrentStateText));
+        }
     }
 
-    /// <summary>
-    /// Programas principales ("Padres / Ancla") cuya presencia permite o dispara la regla.
-    /// Ej: Photoshop.exe, Illustrator.exe, Premiere Pro.exe, AfterFX.exe
-    /// </summary>
     public ObservableCollection<string> AnchorProcesses { get; set; } = new();
-
-    /// <summary>
-    /// Procesos secundarios/servicios que se bloquearán según el estado de los AnchorProcesses.
-    /// Ej: adobe crash processor.exe, adobeipcbroker.exe, ccxprocess.exe
-    /// </summary>
     public ObservableCollection<string> TargetProcesses { get; set; } = new();
-
-    public string CurrentStateText
-    {
-        get => _currentStateText;
-        set { _currentStateText = value; OnPropertyChanged(); }
-    }
 
     public bool IsParentCurrentlyRunning
     {
         get => _isParentCurrentlyRunning;
-        set { _isParentCurrentlyRunning = value; OnPropertyChanged(); }
+        set
+        {
+            if (_isParentCurrentlyRunning == value) return;
+            _isParentCurrentlyRunning = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CurrentStateText));
+        }
     }
 
     public int TotalBlockedByRule
@@ -109,26 +93,76 @@ public class ConditionalRule : INotifyPropertyChanged
         set { _totalBlockedByRule = value; OnPropertyChanged(); }
     }
 
-    public string AnchorListSummary => AnchorProcesses.Count > 0
-        ? string.Join(", ", AnchorProcesses)
-        : "Ninguno (Bloqueo de perfil directo)";
-
-    public string TargetListSummary => TargetProcesses.Count > 0
-        ? string.Join(", ", TargetProcesses)
-        : "Sin procesos asignados";
-
-    public string ModeDisplayName => Mode switch
+    public string CurrentStateText
     {
-        ConditionalRuleMode.BlockWhenParentInactive => "Bloquear si el programa principal NO está activo",
-        ConditionalRuleMode.BlockWhenParentActive => "Bloquear mientras el programa principal ESTÉ activo",
-        ConditionalRuleMode.ProfileAlwaysBlock => "Perfil / Paquete (Bloquear todo el grupo)",
-        _ => "Condicional"
-    };
+        get
+        {
+            bool es = LocalizationService.Instance.IsSpanish;
+            if (!IsEnabled) return es ? "Inactivo" : "Disabled";
+
+            return Mode switch
+            {
+                ConditionalRuleMode.BlockWhenParentInactive => IsParentCurrentlyRunning
+                    ? (es ? "Permitido (Padre activo)" : "Allowed (Parent active)")
+                    : (es ? "Bloqueando (Padre cerrado)" : "Blocking (Parent closed)"),
+                ConditionalRuleMode.BlockWhenParentActive => IsParentCurrentlyRunning
+                    ? (es ? "Bloqueando (Padre activo)" : "Blocking (Parent active)")
+                    : (es ? "En espera (Padre cerrado)" : "Standby (Parent closed)"),
+                ConditionalRuleMode.ProfileAlwaysBlock => es ? "Bloqueando grupo" : "Blocking group",
+                _ => es ? "Activo" : "Active"
+            };
+        }
+    }
+
+    public string AnchorListSummary
+    {
+        get
+        {
+            bool es = LocalizationService.Instance.IsSpanish;
+            string prefix = es ? "🎯 Programa(s) Padre: " : "🎯 Parent App(s): ";
+            string val = AnchorProcesses.Count > 0
+                ? string.Join(", ", AnchorProcesses)
+                : (es ? "Ninguno (Bloqueo directo de perfil)" : "None (Direct profile bundle)");
+            return prefix + val;
+        }
+    }
+
+    public string TargetListSummary
+    {
+        get
+        {
+            bool es = LocalizationService.Instance.IsSpanish;
+            string prefix = es ? "🚫 Bloquear: " : "🚫 Block: ";
+            string val = TargetProcesses.Count > 0
+                ? string.Join(", ", TargetProcesses)
+                : (es ? "Sin procesos asignados" : "No processes assigned");
+            return prefix + val;
+        }
+    }
+
+    public string ModeDisplayName
+    {
+        get
+        {
+            var loc = LocalizationService.Instance;
+            return Mode switch
+            {
+                ConditionalRuleMode.BlockWhenParentInactive => loc.ModeOptionInactive,
+                ConditionalRuleMode.BlockWhenParentActive => loc.ModeOptionActive,
+                ConditionalRuleMode.ProfileAlwaysBlock => loc.ModeOptionAlways,
+                _ => loc.ModeOptionInactive
+            };
+        }
+    }
 
     public void RefreshSummaries()
     {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(Description));
         OnPropertyChanged(nameof(AnchorListSummary));
         OnPropertyChanged(nameof(TargetListSummary));
+        OnPropertyChanged(nameof(ModeDisplayName));
+        OnPropertyChanged(nameof(CurrentStateText));
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

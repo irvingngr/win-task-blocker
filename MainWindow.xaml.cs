@@ -18,15 +18,21 @@ public partial class MainWindow : Window
     private readonly ConfigService _configService = new();
     private readonly StartupManagerService _startupService = new();
     private readonly ProcessBlockerEngine _engine;
+    private readonly LocalizationService _loc = LocalizationService.Instance;
 
     private readonly ObservableCollection<BlockedTaskItem> _blockedTasks = new();
     private readonly ObservableCollection<ConditionalRule> _conditionalRules = new();
     private readonly ObservableCollection<StartupEntry> _startupEntries = new();
+    private readonly ObservableCollection<QuickProfileSidebarItem> _quickProfiles = new();
     private List<ActiveProcessInfo> _cachedActiveProcesses = new();
 
     private ICollectionView? _blockedTasksView;
+    private ICollectionView? _conditionalRulesView;
+    private ICollectionView? _startupEntriesView;
+
     private AppPersistedState _persistedState = new();
     private string _activeProfileFilter = string.Empty;
+    private bool _isInitializing = true;
     private Forms.NotifyIcon? _trayIcon;
 
     public MainWindow()
@@ -35,44 +41,193 @@ public partial class MainWindow : Window
         _engine = new ProcessBlockerEngine(_configService.LogFilePath);
         _engine.ProcessBlocked += OnProcessBlocked;
         _engine.CountsChanged += OnEngineCountsChanged;
+        _loc.LanguageChanged += OnLanguageChanged;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
-        // Enable native Windows 10/11 Acrylic Glass Blur behind the window
-        AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: 165, tintBgr: 0x36192B);
+        _isInitializing = true;
 
-        // Load config.ini + extended JSON state
+        // 1. Load persisted configuration (defaults to English "en")
         _persistedState = _configService.LoadExtendedState();
+        _loc.CurrentLanguage = string.IsNullOrWhiteSpace(_persistedState.Preferences.Language)
+            ? "en"
+            : _persistedState.Preferences.Language;
+        UpdateFlagVisual();
+
+        // 2. Load tasks and conditional rules
         foreach (var item in _configService.LoadBlockedTasks())
             _blockedTasks.Add(item);
 
         foreach (var rule in _persistedState.ConditionalRules)
             _conditionalRules.Add(rule);
 
+        // 3. Setup filterable CollectionViews for all 3 searchable tabs
         _blockedTasksView = CollectionViewSource.GetDefaultView(_blockedTasks);
         _blockedTasksView.Filter = FilterBlockedTaskItem;
         BlockedTasksListBox.ItemsSource = _blockedTasksView;
 
-        ConditionalRulesListBox.ItemsSource = _conditionalRules;
+        _conditionalRulesView = CollectionViewSource.GetDefaultView(_conditionalRules);
+        _conditionalRulesView.Filter = FilterConditionalRuleItem;
+        ConditionalRulesListBox.ItemsSource = _conditionalRulesView;
         if (_conditionalRules.Count > 0)
             ConditionalRulesListBox.SelectedIndex = 0;
 
         RefreshStartupEntriesList();
+        _startupEntriesView = CollectionViewSource.GetDefaultView(_startupEntries);
+        _startupEntriesView.Filter = FilterStartupEntryItem;
+        StartupItemsListBox.ItemsSource = _startupEntriesView;
+
+        // 4. Build dynamic Quick Profiles in sidebar
+        QuickProfilesItemsControl.ItemsSource = _quickProfiles;
+        RebuildQuickProfilesSidebar();
+
+        // 5. Bind preferences & apply saved Crystal Opacity + Crystal Theme
         BindPreferencesToUi();
+        ApplyCrystalThemeAndOpacity(_persistedState.Preferences.AccentTheme, _persistedState.Preferences.GlassOpacity, saveNow: false);
+
         SetupSystemTray();
 
-        // Configure & Start Blocker Engine
+        // 6. Start Blocker Engine
         _engine.Configure(_blockedTasks, _conditionalRules, _persistedState.Preferences);
         if (_persistedState.Preferences.StartMonitoringOnAppStart)
         {
             _engine.Start();
         }
+
+        _isInitializing = false;
         UpdateEngineStatusUi();
         UpdateCountersUi();
 
-        ActivityFeedListBox.Items.Insert(0, $"[{DateTime.Now:HH:mm:ss}] Sistema iniciado con {_blockedTasks.Count} tareas y {_conditionalRules.Count} reglas condicionales.");
+        string initMsg = _loc.IsSpanish
+            ? $"[{DateTime.Now:HH:mm:ss}] Sistema iniciado ({_blockedTasks.Count} tareas, {_conditionalRules.Count} reglas condicionales)."
+            : $"[{DateTime.Now:HH:mm:ss}] Engine initialized ({_blockedTasks.Count} tasks, {_conditionalRules.Count} conditional rules).";
+        ActivityFeedListBox.Items.Insert(0, initMsg);
     }
+
+    public void BringToFrontFromSecondInstance()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized)
+            WindowState = WindowState.Normal;
+        Activate();
+        Topmost = true;
+        Topmost = false;
+        Focus();
+    }
+
+    // ==================== LANGUAGE SWITCHING (EN / ES) ====================
+
+    private void LanguageFlagBtn_Click(object sender, RoutedEventArgs e)
+    {
+        _loc.ToggleLanguage();
+        _persistedState.Preferences.Language = _loc.CurrentLanguage;
+        SaveAllConfig();
+    }
+
+    private void OnLanguageChanged(string newLang)
+    {
+        UpdateFlagVisual();
+        if (_trayOpenItem != null) _trayOpenItem.Text = _loc.TrayOpenText;
+        if (_trayPauseItem != null) _trayPauseItem.Text = _loc.TrayPauseResumeText;
+        if (_trayExitItem != null) _trayExitItem.Text = _loc.TrayExitText;
+
+        foreach (var item in _blockedTasks)
+            item.RefreshLocalization();
+        foreach (var rule in _conditionalRules)
+            rule.RefreshSummaries();
+        foreach (var entry in _startupEntries)
+            entry.RefreshLocalization();
+
+        RefreshStartupEntriesList();
+        UpdateSearchBarVisibilityAndPlaceholder();
+        UpdateEngineStatusUi();
+        UpdateCountersUi();
+    }
+
+    private void UpdateFlagVisual()
+    {
+        bool es = _loc.IsSpanish;
+        FlagEnglishIcon.Visibility = es ? Visibility.Collapsed : Visibility.Visible;
+        FlagSpanishIcon.Visibility = es ? Visibility.Visible : Visibility.Collapsed;
+        LanguageCodeText.Text = es ? "ES" : "EN";
+    }
+
+    // ==================== DYNAMIC QUICK PROFILES SIDEBAR ====================
+
+    private void RebuildQuickProfilesSidebar()
+    {
+        _quickProfiles.Clear();
+        var addedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Add all Conditional Rules / Profiles
+        foreach (var rule in _conditionalRules)
+        {
+            if (string.IsNullOrWhiteSpace(rule.Name)) continue;
+            if (addedKeys.Add(rule.Name))
+            {
+                _quickProfiles.Add(new QuickProfileSidebarItem
+                {
+                    Name = rule.Name,
+                    FilterKey = rule.Name,
+                    DotColor = string.IsNullOrWhiteSpace(rule.BadgeColor) ? "#A855F7" : rule.BadgeColor
+                });
+            }
+        }
+
+        // 2. Add any additional distinct ProfileGroups from BlockedTasks
+        foreach (var group in _blockedTasks.Select(t => t.ProfileGroup).Where(g => !string.IsNullOrWhiteSpace(g)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (string.Equals(group, "General", StringComparison.OrdinalIgnoreCase)) continue;
+            if (addedKeys.Add(group))
+            {
+                _quickProfiles.Add(new QuickProfileSidebarItem
+                {
+                    Name = group,
+                    FilterKey = group,
+                    DotColor = GetColorForGroupName(group)
+                });
+            }
+        }
+    }
+
+    private static string GetColorForGroupName(string name)
+    {
+        var lower = name.ToLowerInvariant();
+        if (lower.Contains("adobe")) return "#EF4444";
+        if (lower.Contains("logi")) return "#06B6D4";
+        if (lower.Contains("remote") || lower.Contains("remoto")) return "#F97316";
+        if (lower.Contains("gaming") || lower.Contains("focus")) return "#A855F7";
+        return "#38BDF8";
+    }
+
+    private void QuickFilterAll_Click(object sender, RoutedEventArgs e)
+    {
+        _activeProfileFilter = string.Empty;
+        NavBlockedBtn.IsChecked = true;
+        _blockedTasksView?.Refresh();
+    }
+
+    private void DynamicQuickProfileBtn_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: string filterKey })
+        {
+            _activeProfileFilter = filterKey;
+            NavBlockedBtn.IsChecked = true;
+            _blockedTasksView?.Refresh();
+
+            bool es = _loc.IsSpanish;
+            FooterStatusText.Text = es
+                ? $"Filtro de perfil activo: {filterKey}"
+                : $"Active profile filter: {filterKey}";
+        }
+    }
+
+    // ==================== SYSTEM TRAY ====================
+
+    private Forms.ToolStripMenuItem? _trayOpenItem;
+    private Forms.ToolStripMenuItem? _trayPauseItem;
+    private Forms.ToolStripMenuItem? _trayExitItem;
 
     private void SetupSystemTray()
     {
@@ -85,33 +240,27 @@ public partial class MainWindow : Window
 
             _trayIcon = new Forms.NotifyIcon
             {
-                Text = "Win Task Blocker - Protección Activa",
+                Text = "Win Task Blocker",
                 Visible = true,
                 Icon = trayIco
             };
-            _trayIcon.DoubleClick += (_, _) =>
-            {
-                Show();
-                WindowState = WindowState.Normal;
-                Activate();
-            };
+            _trayIcon.DoubleClick += (_, _) => BringToFrontFromSecondInstance();
 
             var menu = new Forms.ContextMenuStrip();
-            menu.Items.Add("Abrir Win Task Blocker", null, (_, _) =>
-            {
-                Show();
-                WindowState = WindowState.Normal;
-                Activate();
-            });
-            menu.Items.Add("Pausar / Reanudar Protección", null, (_, _) => ToggleEngine_Click(this, new RoutedEventArgs()));
-            menu.Items.Add(new Forms.ToolStripSeparator());
-            menu.Items.Add("Salir completamente", null, (_, _) =>
+            _trayOpenItem = new Forms.ToolStripMenuItem(_loc.TrayOpenText, null, (_, _) => BringToFrontFromSecondInstance());
+            _trayPauseItem = new Forms.ToolStripMenuItem(_loc.TrayPauseResumeText, null, (_, _) => ToggleEngine_Click(this, new RoutedEventArgs()));
+            _trayExitItem = new Forms.ToolStripMenuItem(_loc.TrayExitText, null, (_, _) =>
             {
                 _trayIcon.Visible = false;
                 _engine.Dispose();
                 SaveAllConfig();
                 System.Windows.Application.Current.Shutdown();
             });
+
+            menu.Items.Add(_trayOpenItem);
+            menu.Items.Add(_trayPauseItem);
+            menu.Items.Add(new Forms.ToolStripSeparator());
+            menu.Items.Add(_trayExitItem);
             _trayIcon.ContextMenuStrip = menu;
         }
         catch { }
@@ -121,17 +270,23 @@ public partial class MainWindow : Window
     {
         Dispatcher.InvokeAsync(() =>
         {
-            string actionVerb = ev.WasMonitorOnly ? "Detectado (Monitor)" : "Bloqueado";
+            bool es = _loc.IsSpanish;
+            string actionVerb = ev.WasMonitorOnly
+                ? (es ? "Detectado (Monitor)" : "Detected (Monitor)")
+                : (es ? "Bloqueado" : "Blocked");
             string msg = $"[{ev.Timestamp:HH:mm:ss}] {actionVerb}: {ev.ProcessName} (PID {ev.Pid}) — {ev.Reason}";
             ActivityFeedListBox.Items.Insert(0, msg);
             if (ActivityFeedListBox.Items.Count > 150)
                 ActivityFeedListBox.Items.RemoveAt(ActivityFeedListBox.Items.Count - 1);
 
-            FooterStatusText.Text = $"Último bloqueo: {ev.ProcessName} a las {ev.Timestamp:HH:mm:ss} ({ev.Reason})";
+            FooterStatusText.Text = es
+                ? $"Último bloqueo: {ev.ProcessName} a las {ev.Timestamp:HH:mm:ss} ({ev.Reason})"
+                : $"Last blocked: {ev.ProcessName} at {ev.Timestamp:HH:mm:ss} ({ev.Reason})";
 
             if (_persistedState.Preferences.ShowNotificationWhenBlocked && _trayIcon != null)
             {
-                _trayIcon.ShowBalloonTip(1500, "Proceso Bloqueado", $"{ev.ProcessName} fue interceptado ({ev.Reason}).", Forms.ToolTipIcon.Info);
+                string title = es ? "Proceso Bloqueado" : "Process Blocked";
+                _trayIcon.ShowBalloonTip(1500, title, $"{ev.ProcessName} ({ev.Reason})", Forms.ToolTipIcon.Info);
             }
         });
     }
@@ -152,26 +307,26 @@ public partial class MainWindow : Window
 
         SidebarActiveRulesCount.Text = activeCount.ToString();
         SidebarTotalBlockedCount.Text = totalBlocked.ToString();
-        FooterBlockedSummaryText.Text = $"Tareas Bloqueadas: {totalBlocked}";
+        FooterBlockedSummaryText.Text = $"{_loc.FooterBlockedTotalPrefix} {totalBlocked}";
     }
 
     private void UpdateEngineStatusUi()
     {
         if (_engine.IsRunning)
         {
-            EngineStatusHeaderText.Text = "Protección Activa";
+            EngineStatusHeaderText.Text = _loc.ProtectionActive;
             EngineStatusDot.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(74, 222, 128));
             HeaderEngineBadge.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(45, 34, 197, 94));
-            StartStopEngineBtn.Content = "⏸ Pausar Motor";
-            FooterStatusText.Text = "Estado: Ejecutando motor de intercepción en tiempo real.";
+            StartStopEngineBtn.Content = _loc.PauseEngineBtn;
+            FooterStatusText.Text = _loc.FooterStatusRunning;
         }
         else
         {
-            EngineStatusHeaderText.Text = "Motor en Pausa";
+            EngineStatusHeaderText.Text = _loc.EnginePaused;
             EngineStatusDot.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(251, 191, 36));
             HeaderEngineBadge.Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(45, 245, 158, 11));
-            StartStopEngineBtn.Content = "▶ Iniciar Motor";
-            FooterStatusText.Text = "Estado: Monitoreo en pausa.";
+            StartStopEngineBtn.Content = _loc.StartEngineBtn;
+            FooterStatusText.Text = _loc.FooterStatusPaused;
         }
     }
 
@@ -217,18 +372,53 @@ public partial class MainWindow : Window
         ViewConditionalRules.Visibility = NavConditionalBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewStartupManager.Visibility = NavStartupBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewPreferences.Visibility = NavPrefsBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ViewAboutCredits.Visibility = NavAboutBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+        UpdateSearchBarVisibilityAndPlaceholder();
     }
 
-    // ==================== FILTERING & PREDICTIVE SEARCH ====================
+    private void UpdateSearchBarVisibilityAndPlaceholder()
+    {
+        if (GlobalSearchBorder == null || GlobalSearchPlaceholder == null) return;
+
+        if (NavBlockedBtn.IsChecked == true)
+        {
+            GlobalSearchBorder.Visibility = Visibility.Visible;
+            GlobalSearchPlaceholder.Text = _loc.SearchPlaceholderBlocked;
+        }
+        else if (NavConditionalBtn.IsChecked == true)
+        {
+            GlobalSearchBorder.Visibility = Visibility.Visible;
+            GlobalSearchPlaceholder.Text = _loc.SearchPlaceholderConditional;
+        }
+        else if (NavStartupBtn.IsChecked == true)
+        {
+            GlobalSearchBorder.Visibility = Visibility.Visible;
+            GlobalSearchPlaceholder.Text = _loc.SearchPlaceholderStartup;
+        }
+        else
+        {
+            // Hide top search bar in Preferences & About tabs where it is not applicable
+            GlobalSearchBorder.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    // ==================== MULTI-TAB FILTERING & PREDICTIVE SEARCH ====================
 
     private bool FilterBlockedTaskItem(object obj)
     {
         if (obj is not BlockedTaskItem item) return false;
 
-        if (!string.IsNullOrWhiteSpace(_activeProfileFilter) &&
-            !string.Equals(item.ProfileGroup, _activeProfileFilter, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(_activeProfileFilter))
         {
-            return false;
+            // Match either direct ProfileGroup OR if the process belongs to a matching ConditionalRule's TargetProcesses
+            bool matchesGroup = string.Equals(item.ProfileGroup, _activeProfileFilter, StringComparison.OrdinalIgnoreCase);
+            bool matchesRuleTargets = _conditionalRules.Any(r =>
+                string.Equals(r.Name, _activeProfileFilter, StringComparison.OrdinalIgnoreCase) &&
+                r.TargetProcesses.Any(tp => string.Equals(tp, item.ProcessName, StringComparison.OrdinalIgnoreCase)));
+
+            if (!matchesGroup && !matchesRuleTargets)
+                return false;
         }
 
         string query = GlobalSearchBox?.Text?.Trim() ?? string.Empty;
@@ -239,45 +429,43 @@ public partial class MainWindow : Window
                item.ProfileGroup.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
+    private bool FilterConditionalRuleItem(object obj)
+    {
+        if (obj is not ConditionalRule rule) return false;
+        string query = GlobalSearchBox?.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query)) return true;
+
+        return rule.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               rule.Description.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               rule.AnchorProcesses.Any(a => a.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+               rule.TargetProcesses.Any(t => t.Contains(query, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool FilterStartupEntryItem(object obj)
+    {
+        if (obj is not StartupEntry entry) return false;
+        string query = GlobalSearchBox?.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query)) return true;
+
+        return entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               entry.Command.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               entry.SourceLocation.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void GlobalSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         bool hasText = !string.IsNullOrEmpty(GlobalSearchBox.Text);
         GlobalSearchPlaceholder.Visibility = hasText ? Visibility.Collapsed : Visibility.Visible;
         ClearSearchBtn.Visibility = hasText ? Visibility.Visible : Visibility.Collapsed;
+
         _blockedTasksView?.Refresh();
+        _conditionalRulesView?.Refresh();
+        _startupEntriesView?.Refresh();
     }
 
     private void ClearSearchBtn_Click(object sender, RoutedEventArgs e)
     {
         GlobalSearchBox.Text = string.Empty;
-    }
-
-    private void QuickFilterAll_Click(object sender, RoutedEventArgs e)
-    {
-        _activeProfileFilter = string.Empty;
-        NavBlockedBtn.IsChecked = true;
-        _blockedTasksView?.Refresh();
-    }
-
-    private void QuickFilterAdobe_Click(object sender, RoutedEventArgs e)
-    {
-        _activeProfileFilter = "Suite Adobe";
-        NavBlockedBtn.IsChecked = true;
-        _blockedTasksView?.Refresh();
-    }
-
-    private void QuickFilterLogitech_Click(object sender, RoutedEventArgs e)
-    {
-        _activeProfileFilter = "Logitech";
-        NavBlockedBtn.IsChecked = true;
-        _blockedTasksView?.Refresh();
-    }
-
-    private void QuickFilterRemote_Click(object sender, RoutedEventArgs e)
-    {
-        _activeProfileFilter = "Acceso Remoto";
-        NavBlockedBtn.IsChecked = true;
-        _blockedTasksView?.Refresh();
     }
 
     // ==================== QUICK PREDICTIVE ADD BAR ====================
@@ -370,6 +558,7 @@ public partial class MainWindow : Window
         };
 
         _blockedTasks.Insert(0, newItem);
+        RebuildQuickProfilesSidebar();
         SaveAllConfig();
         UpdateCountersUi();
     }
@@ -403,6 +592,7 @@ public partial class MainWindow : Window
         if (sender is System.Windows.Controls.Button { Tag: BlockedTaskItem item })
         {
             _blockedTasks.Remove(item);
+            RebuildQuickProfilesSidebar();
             SaveAllConfig();
             UpdateCountersUi();
         }
@@ -413,6 +603,7 @@ public partial class MainWindow : Window
         if (BlockedTasksListBox.SelectedItem is BlockedTaskItem selected)
         {
             _blockedTasks.Remove(selected);
+            RebuildQuickProfilesSidebar();
             SaveAllConfig();
             UpdateCountersUi();
         }
@@ -432,8 +623,8 @@ public partial class MainWindow : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "Seleccionar archivo config.ini de Task Blocker",
-            Filter = "Configuración Task Blocker (config.ini)|*.ini|Todos los archivos (*.*)|*.*"
+            Title = _loc.IsSpanish ? "Seleccionar archivo config.ini" : "Select Task Blocker config.ini file",
+            Filter = "Task Blocker Config (config.ini)|*.ini|All files (*.*)|*.*"
         };
 
         if (dlg.ShowDialog() == true)
@@ -442,12 +633,13 @@ public partial class MainWindow : Window
             _blockedTasks.Clear();
             foreach (var item in imported)
                 _blockedTasks.Add(item);
+            RebuildQuickProfilesSidebar();
             SaveAllConfig();
             UpdateCountersUi();
         }
     }
 
-    // ==================== ADD TASK MODAL (ACTIVE PROCESSES / FILE / MANUAL) ====================
+    // ==================== ADD TASK MODAL ====================
 
     private void OpenAddTaskDialog_Click(object sender, RoutedEventArgs e)
     {
@@ -482,7 +674,9 @@ public partial class MainWindow : Window
                 p.Description.Contains(q, StringComparison.OrdinalIgnoreCase)).ToList();
 
         ActiveProcessesModalList.ItemsSource = filtered;
-        ActiveProcessCountLabel.Text = $"Procesos activos mostrados: {filtered.Count}";
+        ActiveProcessCountLabel.Text = _loc.IsSpanish
+            ? $"Procesos activos mostrados: {filtered.Count}"
+            : $"Active processes shown: {filtered.Count}";
     }
 
     private void ActiveProcessesModalList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -502,8 +696,8 @@ public partial class MainWindow : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "Seleccionar ejecutable (.exe) a bloquear",
-            Filter = "Ejecutables de Windows (*.exe)|*.exe|Todos los archivos (*.*)|*.*"
+            Title = _loc.IsSpanish ? "Seleccionar ejecutable (.exe)" : "Select Windows executable (.exe)",
+            Filter = "Windows Executables (*.exe)|*.exe|All files (*.*)|*.*"
         };
 
         if (dlg.ShowDialog() == true)
@@ -530,13 +724,14 @@ public partial class MainWindow : Window
         }
     }
 
-    // ==================== CONDITIONAL BLOCKING & PROFILES ====================
+    // ==================== CONDITIONAL BLOCKING & PROFILES (SYNCED WITH QUICK PROFILES) ====================
 
     private void ConditionalRulesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (ConditionalRulesListBox.SelectedItem is not ConditionalRule rule) return;
 
         RuleNameBox.Text = rule.Name;
+        RuleDescBox.Text = rule.Description;
         RuleModeCombo.SelectedIndex = rule.Mode switch
         {
             ConditionalRuleMode.BlockWhenParentInactive => 0,
@@ -557,18 +752,23 @@ public partial class MainWindow : Window
 
     private void CreateNewConditionalRule_Click(object sender, RoutedEventArgs e)
     {
+        bool es = _loc.IsSpanish;
         var newRule = new ConditionalRule
         {
-            Name = "Nuevo Perfil Condicional",
-            Description = "Bloquea procesos secundarios cuando el programa principal no está en ejecución.",
+            Name = es ? $"Perfil Personalizado {_conditionalRules.Count + 1}" : $"Custom Profile {_conditionalRules.Count + 1}",
+            Description = es
+                ? "Bloquea procesos secundarios cuando el programa principal no está en ejecución."
+                : "Blocks background target processes when the main parent app is not running.",
+            BadgeColor = "#38BDF8",
             IsEnabled = true,
             KillOnParentExit = true,
             Mode = ConditionalRuleMode.BlockWhenParentInactive,
-            AnchorProcesses = new ObservableCollection<string> { "ProgramaPrincipal.exe" },
-            TargetProcesses = new ObservableCollection<string> { "ServicioSecundario.exe" }
+            AnchorProcesses = new ObservableCollection<string> { "MainApp.exe" },
+            TargetProcesses = new ObservableCollection<string> { "HelperService.exe" }
         };
         _conditionalRules.Add(newRule);
         ConditionalRulesListBox.SelectedItem = newRule;
+        RebuildQuickProfilesSidebar();
         SaveAllConfig();
         UpdateCountersUi();
     }
@@ -577,7 +777,8 @@ public partial class MainWindow : Window
     {
         if (ConditionalRulesListBox.SelectedItem is not ConditionalRule rule) return;
 
-        rule.Name = string.IsNullOrWhiteSpace(RuleNameBox.Text) ? "Regla sin nombre" : RuleNameBox.Text.Trim();
+        rule.Name = string.IsNullOrWhiteSpace(RuleNameBox.Text) ? "Profile" : RuleNameBox.Text.Trim();
+        rule.Description = RuleDescBox.Text.Trim();
         rule.Mode = RuleModeCombo.SelectedIndex switch
         {
             0 => ConditionalRuleMode.BlockWhenParentInactive,
@@ -594,18 +795,33 @@ public partial class MainWindow : Window
         foreach (var part in RuleTargetsBox.Text.Split([',', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             rule.TargetProcesses.Add(ProcessBlockerEngine.NormalizeExeName(part));
 
+        rule.BadgeColor = GetColorForGroupName(rule.Name);
         rule.RefreshSummaries();
+        _conditionalRulesView?.Refresh();
+
+        // Immediately sync Quick Profiles in the left sidebar!
+        RebuildQuickProfilesSidebar();
         SaveAllConfig();
-        FooterStatusText.Text = $"Regla '{rule.Name}' actualizada correctamente.";
+
+        FooterStatusText.Text = _loc.IsSpanish
+            ? $"Perfil '{rule.Name}' actualizado en Perfiles Rápidos."
+            : $"Profile '{rule.Name}' saved and updated in Quick Profiles.";
     }
 
     private void DeleteConditionalRule_Click(object sender, RoutedEventArgs e)
     {
         if (ConditionalRulesListBox.SelectedItem is ConditionalRule rule)
         {
+            string deletedName = rule.Name;
             _conditionalRules.Remove(rule);
             if (_conditionalRules.Count > 0)
                 ConditionalRulesListBox.SelectedIndex = 0;
+
+            if (string.Equals(_activeProfileFilter, deletedName, StringComparison.OrdinalIgnoreCase))
+                _activeProfileFilter = string.Empty;
+
+            // Immediately sync Quick Profiles in the left sidebar!
+            RebuildQuickProfilesSidebar();
             SaveAllConfig();
             UpdateCountersUi();
         }
@@ -618,7 +834,6 @@ public partial class MainWindow : Window
         _startupEntries.Clear();
         foreach (var entry in _startupService.GetStartupEntries())
             _startupEntries.Add(entry);
-        StartupItemsListBox.ItemsSource = _startupEntries;
     }
 
     private void RefreshStartupItems_Click(object sender, RoutedEventArgs e) => RefreshStartupEntriesList();
@@ -629,7 +844,9 @@ public partial class MainWindow : Window
         {
             bool targetState = cb.IsChecked == true;
             _startupService.ToggleStartupEntry(entry, targetState);
-            FooterStatusText.Text = $"Inicio automático de '{entry.Name}': {(targetState ? "Habilitado" : "Deshabilitado")}.";
+            FooterStatusText.Text = _loc.IsSpanish
+                ? $"Inicio automático de '{entry.Name}': {(targetState ? "Habilitado" : "Deshabilitado")}."
+                : $"Startup entry '{entry.Name}': {(targetState ? "Enabled" : "Disabled")}.";
         }
     }
 
@@ -637,8 +854,8 @@ public partial class MainWindow : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "Seleccionar programa (.exe) para agregar al Inicio de Windows",
-            Filter = "Ejecutables (*.exe)|*.exe"
+            Title = _loc.IsSpanish ? "Seleccionar programa (.exe) para agregar al Inicio" : "Select program (.exe) to add to Windows Startup",
+            Filter = "Windows Executables (*.exe)|*.exe"
         };
 
         if (dlg.ShowDialog() == true)
@@ -647,7 +864,9 @@ public partial class MainWindow : Window
             if (_startupService.AddCurrentUserStartupEntry(name, dlg.FileName))
             {
                 RefreshStartupEntriesList();
-                FooterStatusText.Text = $"Se agregó '{name}' al Inicio de Windows.";
+                FooterStatusText.Text = _loc.IsSpanish
+                    ? $"Se agregó '{name}' al Inicio de Windows."
+                    : $"Added '{name}' to Windows Startup.";
             }
         }
     }
@@ -659,12 +878,14 @@ public partial class MainWindow : Window
             if (_startupService.DeleteStartupEntry(entry))
             {
                 _startupEntries.Remove(entry);
-                FooterStatusText.Text = $"Se eliminó '{entry.Name}' del Inicio de Windows.";
+                FooterStatusText.Text = _loc.IsSpanish
+                    ? $"Se eliminó '{entry.Name}' del Inicio de Windows."
+                    : $"Removed '{entry.Name}' from Windows Startup.";
             }
         }
     }
 
-    // ==================== PREFERENCES & GLASS APPEARANCE ====================
+    // ==================== PREFERENCES & CRYSTAL APPEARANCE (PERSISTED AUTOMATICALLY) ====================
 
     private void BindPreferencesToUi()
     {
@@ -680,7 +901,8 @@ public partial class MainWindow : Window
         PrefWarnLogSize.IsChecked = p.WarnIfLogExceedsSize;
         PrefMaxLogMbBox.Text = p.MaxLogSizeMb.ToString("F1");
         PrefLogEditorBox.Text = p.DefaultLogEditor;
-        GlassOpacitySlider.Value = Math.Clamp(p.GlassOpacity, 0.25, 0.95);
+        GlassOpacitySlider.Value = Math.Clamp(p.GlassOpacity, 0.30, 0.95);
+        GlassOpacityPercentText.Text = $"{(int)Math.Round(GlassOpacitySlider.Value * 100)}%";
     }
 
     private void SavePreferences_Click(object sender, RoutedEventArgs e)
@@ -703,7 +925,9 @@ public partial class MainWindow : Window
         StartupManagerService.SetSelfStartup(p.LaunchAtWindowsStartup);
         _engine.Configure(_blockedTasks, _conditionalRules, p);
         SaveAllConfig();
-        FooterStatusText.Text = "Preferencias guardadas y aplicadas correctamente.";
+        FooterStatusText.Text = _loc.IsSpanish
+            ? "Preferencias guardadas correctamente."
+            : "Preferences saved and applied.";
     }
 
     private void OpenLogFile_Click(object sender, RoutedEventArgs e)
@@ -711,7 +935,7 @@ public partial class MainWindow : Window
         try
         {
             if (!File.Exists(_configService.LogFilePath))
-                File.WriteAllText(_configService.LogFilePath, $"# Task Blocker Log - {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}");
+                File.WriteAllText(_configService.LogFilePath, $"# Win Task Blocker Log - {DateTime.Now:yyyy-MM-dd HH:mm:ss}{Environment.NewLine}");
 
             string editor = string.IsNullOrWhiteSpace(PrefLogEditorBox.Text) ? "notepad.exe" : PrefLogEditorBox.Text.Trim();
             Process.Start(new ProcessStartInfo(editor, $"\"{_configService.LogFilePath}\"") { UseShellExecute = true });
@@ -722,34 +946,89 @@ public partial class MainWindow : Window
     private void GlassOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (GradStop1 == null || GradStop2 == null || GradStop3 == null) return;
-        byte a = (byte)Math.Clamp(e.NewValue * 255, 50, 245);
-        GradStop1.Color = System.Windows.Media.Color.FromArgb(a, GradStop1.Color.R, GradStop1.Color.G, GradStop1.Color.B);
-        GradStop2.Color = System.Windows.Media.Color.FromArgb(a, GradStop2.Color.R, GradStop2.Color.G, GradStop2.Color.B);
-        GradStop3.Color = System.Windows.Media.Color.FromArgb(a, GradStop3.Color.R, GradStop3.Color.G, GradStop3.Color.B);
+        if (GlassOpacityPercentText != null)
+            GlassOpacityPercentText.Text = $"{(int)Math.Round(e.NewValue * 100)}%";
+
+        if (_isInitializing) return;
+        ApplyCrystalThemeAndOpacity(_persistedState.Preferences.AccentTheme, e.NewValue, saveNow: true);
     }
 
-    private void ThemeNebula_Click(object sender, RoutedEventArgs e)
+    private void ThemeNebula_Click(object sender, RoutedEventArgs e) =>
+        ApplyCrystalThemeAndOpacity("PurpleNebula", GlassOpacitySlider.Value, saveNow: true);
+
+    private void ThemeMidnightDark_Click(object sender, RoutedEventArgs e) =>
+        ApplyCrystalThemeAndOpacity("MidnightDark", GlassOpacitySlider.Value, saveNow: true);
+
+    private void ThemeWindowsBlue_Click(object sender, RoutedEventArgs e) =>
+        ApplyCrystalThemeAndOpacity("WindowsBlue", GlassOpacitySlider.Value, saveNow: true);
+
+    private void ThemeCyan_Click(object sender, RoutedEventArgs e) =>
+        ApplyCrystalThemeAndOpacity("ArcticCyan", GlassOpacitySlider.Value, saveNow: true);
+
+    private void ApplyCrystalThemeAndOpacity(string themeName, double opacity, bool saveNow)
     {
-        byte a = (byte)Math.Clamp(GlassOpacitySlider.Value * 255, 50, 245);
-        GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 59, 29, 94);
-        GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 43, 25, 77);
-        GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 21, 25, 54);
+        opacity = Math.Clamp(opacity, 0.30, 0.95);
+        byte a = (byte)Math.Clamp(opacity * 255, 65, 242);
+
+        uint tintBgr;
+        switch (themeName)
+        {
+            case "MidnightDark":
+                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 18, 22, 34);
+                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 14, 18, 28);
+                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 10, 13, 21);
+                tintBgr = 0x1E1410;
+                break;
+
+            case "WindowsBlue":
+                // Authentic Windows 11 Sapphire / Fluent Blue Acrylic Glass
+                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 16, 48, 104);
+                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 14, 38, 86);
+                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 11, 25, 58);
+                tintBgr = 0x56260E;
+                break;
+
+            case "ArcticCyan":
+                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 14, 58, 78);
+                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 15, 40, 64);
+                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 11, 22, 44);
+                tintBgr = 0x4E3A0E;
+                break;
+
+            default: // "PurpleNebula"
+                themeName = "PurpleNebula";
+                GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 59, 29, 94);
+                GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 43, 25, 77);
+                GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 21, 25, 54);
+                tintBgr = 0x36192B;
+                break;
+        }
+
+        // Highlight active theme button border
+        HighlightThemeButton(BtnThemeNebula, themeName == "PurpleNebula");
+        HighlightThemeButton(BtnThemeDark, themeName == "MidnightDark");
+        HighlightThemeButton(BtnThemeWindowsBlue, themeName == "WindowsBlue");
+        HighlightThemeButton(BtnThemeCyan, themeName == "ArcticCyan");
+
+        // Update native Windows 10/11 DWM Acrylic Blur behind
+        AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: a, tintBgr: tintBgr);
+
+        _persistedState.Preferences.AccentTheme = themeName;
+        _persistedState.Preferences.GlassOpacity = opacity;
+
+        if (saveNow)
+        {
+            SaveAllConfig();
+        }
     }
 
-    private void ThemeWintoys_Click(object sender, RoutedEventArgs e)
+    private static void HighlightThemeButton(System.Windows.Controls.Button? btn, bool isActive)
     {
-        byte a = (byte)Math.Clamp(GlassOpacitySlider.Value * 255, 50, 245);
-        GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 18, 22, 34);
-        GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 15, 19, 30);
-        GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 10, 14, 23);
-    }
-
-    private void ThemeCyan_Click(object sender, RoutedEventArgs e)
-    {
-        byte a = (byte)Math.Clamp(GlassOpacitySlider.Value * 255, 50, 245);
-        GradStop1.Color = System.Windows.Media.Color.FromArgb(a, 15, 52, 77);
-        GradStop2.Color = System.Windows.Media.Color.FromArgb(a, 17, 36, 64);
-        GradStop3.Color = System.Windows.Media.Color.FromArgb(a, 12, 20, 44);
+        if (btn == null) return;
+        btn.BorderBrush = isActive
+            ? new SolidColorBrush(System.Windows.Media.Color.FromRgb(192, 132, 252))
+            : new SolidColorBrush(System.Windows.Media.Color.FromArgb(64, 255, 255, 255));
+        btn.BorderThickness = isActive ? new Thickness(1.6) : new Thickness(1);
     }
 
     private void SaveAllConfig()

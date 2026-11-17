@@ -17,12 +17,13 @@ public class StartupManagerService
     public List<StartupEntry> GetStartupEntries()
     {
         var entries = new List<StartupEntry>();
+        bool es = LocalizationService.Instance.IsSpanish;
 
         // 1. Current User Registry Run
-        ReadRegistryStartup(Registry.CurrentUser, "Registro (Usuario Actual)", isCurrentUser: true, entries);
+        ReadRegistryStartup(Registry.CurrentUser, es ? "Registro (HKCU Usuario)" : "Registry (HKCU User)", isCurrentUser: true, entries);
 
         // 2. Local Machine Registry Run
-        ReadRegistryStartup(Registry.LocalMachine, "Registro (Sistema Local)", isCurrentUser: false, entries);
+        ReadRegistryStartup(Registry.LocalMachine, es ? "Registro (HKLM Sistema)" : "Registry (HKLM System)", isCurrentUser: false, entries);
 
         // 3. Disabled items stored by WinTaskBlocker backup
         ReadDisabledBackupRegistry(entries);
@@ -51,7 +52,6 @@ public class StartupManagerService
                 bool enabled = true;
                 if (approvedKey?.GetValue(valueName) is byte[] bytes && bytes.Length >= 1)
                 {
-                    // Windows Task Manager convention: 0x02 or 0x06 means enabled; 0x03 means disabled
                     enabled = bytes[0] % 2 == 0;
                 }
 
@@ -78,6 +78,7 @@ public class StartupManagerService
         {
             using var backupKey = Registry.CurrentUser.OpenSubKey(DisabledBackupKeyPath, writable: false);
             if (backupKey == null) return;
+            bool es = LocalizationService.Instance.IsSpanish;
 
             foreach (var valueName in backupKey.GetValueNames())
             {
@@ -92,7 +93,7 @@ public class StartupManagerService
                     Name = valueName,
                     Command = command,
                     ExecutablePath = exePath,
-                    SourceLocation = "Registro (Deshabilitado)",
+                    SourceLocation = es ? "Registro (Deshabilitado)" : "Registry (Disabled)",
                     RegistryKeyPath = RunKeyPath,
                     IsCurrentUser = true,
                     IsStartupFolder = false,
@@ -110,6 +111,7 @@ public class StartupManagerService
         {
             string startupDir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
             if (!Directory.Exists(startupDir)) return;
+            bool es = LocalizationService.Instance.IsSpanish;
 
             foreach (var file in Directory.GetFiles(startupDir))
             {
@@ -124,7 +126,7 @@ public class StartupManagerService
                     Name = displayName,
                     Command = file,
                     ExecutablePath = file,
-                    SourceLocation = "Carpeta Inicio de Windows",
+                    SourceLocation = es ? "Carpeta Inicio de Windows" : "Windows Startup Folder",
                     IsCurrentUser = true,
                     IsStartupFolder = true,
                     IsEnabled = !isDisabled,
@@ -162,7 +164,7 @@ public class StartupManagerService
 
             RegistryKey root = entry.IsCurrentUser ? Registry.CurrentUser : Registry.LocalMachine;
 
-            // Update Windows StartupApproved\Run byte array (same mechanism as Windows 11 Task Manager & Wintoys)
+            // Update Windows StartupApproved\Run byte array (same mechanism as Windows 11 Task Manager)
             using (var approvedKey = root.CreateSubKey(ApprovedRunKeyPath, writable: true))
             {
                 if (approvedKey != null)

@@ -76,7 +76,13 @@ public class ConfigService
                 string json = File.ReadAllText(ExtendedStatePath, Encoding.UTF8);
                 var state = JsonSerializer.Deserialize<AppPersistedState>(json);
                 if (state != null && state.ConditionalRules.Count > 0)
+                {
+                    if (string.IsNullOrWhiteSpace(state.Preferences.Language))
+                        state.Preferences.Language = "en";
+                    if (string.IsNullOrWhiteSpace(state.Preferences.AccentTheme))
+                        state.Preferences.AccentTheme = "PurpleNebula";
                     return state;
+                }
             }
             catch { }
         }
@@ -141,8 +147,8 @@ public class ConfigService
         [
             new ConditionalRule
             {
-                Name = "Suite Adobe (Guardián Condicional)",
-                Description = "Bloquea telemetría y brokers de Adobe cuando no estás usando Photoshop, Premiere, Illustrator o After Effects.",
+                Name = "Adobe Suite",
+                Description = "Blocks Adobe background brokers and crash reporters when Photoshop, Premiere, Illustrator, or After Effects are closed.",
                 BadgeColor = "#EF4444",
                 IsEnabled = true,
                 KillOnParentExit = true,
@@ -167,8 +173,8 @@ public class ConfigService
             },
             new ConditionalRule
             {
-                Name = "Perfil Logitech G HUB",
-                Description = "Bloquea los procesos en segundo plano de Logitech cuando no necesitas configurar periféricos.",
+                Name = "Logitech G HUB",
+                Description = "Blocks Logitech background services when you don't need peripheral configuration running.",
                 BadgeColor = "#06B6D4",
                 IsEnabled = true,
                 KillOnParentExit = true,
@@ -184,8 +190,8 @@ public class ConfigService
             },
             new ConditionalRule
             {
-                Name = "Acceso Remoto (AnyDesk & LogMeIn)",
-                Description = "Evita que servicios de escritorio remoto queden residentes consumiendo recursos en segundo plano.",
+                Name = "Remote Access",
+                Description = "Prevents AnyDesk and LogMeIn background services from staying resident in memory.",
                 BadgeColor = "#F97316",
                 IsEnabled = true,
                 KillOnParentExit = true,
@@ -200,8 +206,8 @@ public class ConfigService
             },
             new ConditionalRule
             {
-                Name = "Modo Gaming / Enfoque",
-                Description = "Bloquea procesos pesados o de consola sólo cuando hay un juego activo.",
+                Name = "Gaming / Focus Mode",
+                Description = "Blocks heavy IDE or background processes only while a game is actively running.",
                 BadgeColor = "#A855F7",
                 IsEnabled = false,
                 KillOnParentExit = false,
