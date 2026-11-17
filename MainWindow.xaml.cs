@@ -78,11 +78,16 @@ public partial class MainWindow : Window
     {
         try
         {
+            string icoPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "app.ico");
+            var trayIco = File.Exists(icoPath)
+                ? new System.Drawing.Icon(icoPath)
+                : (System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? string.Empty) ?? System.Drawing.SystemIcons.Shield);
+
             _trayIcon = new Forms.NotifyIcon
             {
-                Text = "Task Blocker v2.0 - Protección Activa",
+                Text = "Win Task Blocker - Protección Activa",
                 Visible = true,
-                Icon = System.Drawing.SystemIcons.Shield
+                Icon = trayIco
             };
             _trayIcon.DoubleClick += (_, _) =>
             {
@@ -92,7 +97,7 @@ public partial class MainWindow : Window
             };
 
             var menu = new Forms.ContextMenuStrip();
-            menu.Items.Add("Abrir Task Blocker", null, (_, _) =>
+            menu.Items.Add("Abrir Win Task Blocker", null, (_, _) =>
             {
                 Show();
                 WindowState = WindowState.Normal;

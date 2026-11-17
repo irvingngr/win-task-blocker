@@ -1,4 +1,4 @@
-name: Build Windows Executable (TaskBlocker.exe)
+name: Build Win Task Blocker (Windows x64)
 
 on:
   push:
@@ -33,12 +33,13 @@ jobs:
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
-            -o publish/TaskBlocker_v2.0_Portable
+            -o publish/WinTaskBlocker_v2.0_Portable
 
       - name: Upload Portable Executable Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: TaskBlocker-v2.0-Windows-x64-Portable
+          name: WinTaskBlocker-v2.0-Windows-x64-Portable
           path: |
-            publish/TaskBlocker_v2.0_Portable/TaskBlocker.exe
-            publish/TaskBlocker_v2.0_Portable/config.ini
+            publish/WinTaskBlocker_v2.0_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0_Portable/config.ini
+            publish/WinTaskBlocker_v2.0_Portable/Assets/app.ico
