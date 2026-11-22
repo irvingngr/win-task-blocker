@@ -67,8 +67,9 @@ public static class AcrylicWindowHelper
             uint noBorder = DWMWA_COLOR_NONE;
             DwmSetWindowAttribute(helper.Handle, DWMWA_BORDER_COLOR, ref noBorder, sizeof(uint));
 
-            // Apply Acrylic Blur Behind with AccentFlags = 0 (prevents secondary DWM border frame)
-            uint gradientColor = ((uint)alphaOpacity << 24) | (tintBgr & 0xFFFFFF);
+            // Keep DWM acrylic tint alpha subtle (20..110) so the desktop shines through while WPF RootGlassGradient controls the color & opacity
+            byte dwmAlpha = (byte)Math.Clamp((int)(alphaOpacity * 0.35), 20, 110);
+            uint gradientColor = ((uint)dwmAlpha << 24) | (tintBgr & 0xFFFFFF);
             var accent = new AccentPolicy
             {
                 AccentState = AccentState.ACCENT_ENABLE_ACRYLICBLURBEHIND,

@@ -31,9 +31,12 @@ public class LocalizationService : INotifyPropertyChanged
     }
 
     // Header & Window (Simplified status and engine button labels as requested)
-    public string AppSubtitle => IsSpanish ? "v2.0.3 Edición Cristal Acrílico" : "v2.0.3 Acrylic Glass Edition";
+    public string AppSubtitle => IsSpanish ? "v2.0.4 Edición Cristal Acrílico" : "v2.0.4 Acrylic Glass Edition";
     public string ProtectionActive => IsSpanish ? "Bloqueo Activo" : "Block Enabled";
     public string EnginePaused => IsSpanish ? "Bloqueo Desactivado" : "Block Disabled";
+    public string HeaderToggleTooltip => IsSpanish
+        ? "Clic para activar o desactivar el bloqueo de procesos"
+        : "Click to toggle process blocking (Enabled / Disabled)";
     public string PauseEngineBtn => IsSpanish ? "⏹ Detener" : "⏹ Stop";
     public string StartEngineBtn => IsSpanish ? "▶ Iniciar" : "▶ Start";
     public string FlagTooltip => IsSpanish ? "Idioma: Español (Clic para cambiar a Inglés)" : "Language: English (Click to switch to Spanish)";
@@ -46,6 +49,7 @@ public class LocalizationService : INotifyPropertyChanged
     public string NavBlockedTasks => IsSpanish ? "Tareas Bloqueadas" : "Blocked Tasks";
     public string NavConditional => IsSpanish ? "Bloqueo Condicional" : "Conditional Rules";
     public string NavStartup => IsSpanish ? "Inicio de Windows" : "Windows Startup";
+    public string NavHosts => IsSpanish ? "Archivo Hosts" : "Hosts Manager";
     public string NavPreferences => IsSpanish ? "Preferencias y Cristal" : "Preferences & Glass";
     public string NavAbout => IsSpanish ? "Acerca de / Créditos" : "About & Credits";
     public string QuickProfilesHeader => IsSpanish ? "PERFILES RÁPIDOS" : "QUICK PROFILES";
@@ -64,6 +68,9 @@ public class LocalizationService : INotifyPropertyChanged
     public string SearchPlaceholderStartup => IsSpanish
         ? "Buscar programas de inicio automático de Windows..."
         : "Search Windows startup programs or registry paths...";
+    public string SearchPlaceholderHosts => IsSpanish
+        ? "Buscar entradas, IPs o dominios en el archivo hosts..."
+        : "Search hosts entries, IPs, domains or comments...";
 
     // View 1: Blocked Tasks
     public string BlockedViewTitle => IsSpanish ? "Lista de Tareas Bloqueadas" : "Blocked Tasks List";
@@ -198,8 +205,30 @@ public class LocalizationService : INotifyPropertyChanged
     public string CancelBtn => IsSpanish ? "Cancelar" : "Cancel";
     public string ConfirmAddBtn => IsSpanish ? "＋ Agregar a Bloqueados" : "＋ Add to Blocked";
 
+    // View 4B: Hosts File Manager
+    public string HostsViewTitle => IsSpanish ? "Gestor del Archivo Hosts (Admin)" : "Hosts File Manager (Admin)";
+    public string HostsViewSubtitle => IsSpanish
+        ? "Administra C:\\Windows\\System32\\drivers\\etc\\hosts con respaldo y restauración rápida."
+        : "Manage C:\\Windows\\System32\\drivers\\etc\\hosts with instant backup and rollback.";
+    public string HostsInfoTitle => IsSpanish
+        ? "¿Qué es el archivo Hosts y qué efectos tiene modificarlo?"
+        : "What does the Hosts file do & what are the effects of modifying it?";
+    public string HostsInfoBody => IsSpanish
+        ? "El archivo hosts traduce nombres de dominio a direcciones IP localmente antes de consultar un servidor DNS. Redirigir un dominio a 0.0.0.0 (ruta nula segura recomendada) o 127.0.0.1 bloquea conexiones de telemetría, anuncios o servidores no deseados en todo el sistema. Efectos: los cambios aplican de inmediato (se limpia la caché DNS); evita eliminar o alterar 'localhost' (127.0.0.1 / ::1) o dominios críticos para no afectar servicios locales."
+        : "The hosts file maps domain names to IP addresses locally before querying a DNS server. Pointing a domain to 0.0.0.0 (recommended safe null route) or 127.0.0.1 blocks telemetry, ads, or unwanted connections system-wide. Effects: changes take effect immediately (DNS cache is flushed); avoid removing or altering 'localhost' (127.0.0.1 / ::1) or critical domains so local networking stays healthy.";
+    public string HostsBackupBtn => IsSpanish ? "📦 Crear Respaldo" : "📦 Backup";
+    public string HostsRevertBtn => IsSpanish ? "↩ Revertir al Respaldo" : "↩ Revert to Backup";
+    public string HostsSaveBtn => IsSpanish ? "💾 Guardar Hosts" : "💾 Save Hosts";
+    public string HostsIpLabel => IsSpanish ? "IP Segura Sugerida:" : "Suggested Safe IP:";
+    public string HostsDomainLabel => IsSpanish ? "Dominio a bloquear / redirigir:" : "Domain to block / redirect:";
+    public string HostsCommentLabel => IsSpanish ? "Nota / Comentario (opcional):" : "Comment (optional):";
+    public string HostsAddBtn => IsSpanish ? "＋ Agregar Entrada" : "＋ Add Entry";
+    public string HostsColIp => IsSpanish ? "Dirección IP" : "IP Address";
+    public string HostsColDomain => IsSpanish ? "Dominio / Host" : "Domain / Hostname";
+    public string HostsColComment => IsSpanish ? "Comentario" : "Comment";
+
     // About / Credits Card
-    public string AboutHeaderTitle => "Win Task Blocker v2.0.3 — Process & Startup Guardian";
+    public string AboutHeaderTitle => "Win Task Blocker v2.0.4 — Process & Startup Guardian";
     public string AboutBadgeText => IsSpanish
         ? "Optimizado para Windows 10 y Windows 11 (x64)"
         : "Optimized for Windows 10 & Windows 11 (x64)";
@@ -211,10 +240,10 @@ public class LocalizationService : INotifyPropertyChanged
         : "Disclaimer: This software is provided \"as is\" without warranty. The developer is not responsible for system instability resulting from blocking critical operating system processes.";
     public string CraftedByPrefix => IsSpanish ? "Creado por" : "Crafted by";
     public string PoweredBySuffix => IsSpanish
-        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.3"
-        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.3";
+        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.4"
+        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.4";
     public string CardVersionHeader => IsSpanish ? "CONTROL DE VERSIÓN" : "VERSION CONTROL";
-    public string CardVersionTitle => IsSpanish ? "v2.0.3 Estable" : "v2.0.3 Stable";
+    public string CardVersionTitle => IsSpanish ? "v2.0.4 Estable" : "v2.0.4 Stable";
     public string CardVersionDesc => IsSpanish
         ? "Motor nativo .NET 8.0 WPF + Arranque Rápido ReadyToRun + Cristal Acrílico"
         : ".NET 8.0 Native WPF + ReadyToRun Fast Boot + Win32 DWM Acrylic Glass";
@@ -226,6 +255,10 @@ public class LocalizationService : INotifyPropertyChanged
 
     // System Tray Menu
     public string TrayOpenText => IsSpanish ? "Abrir Win Task Blocker" : "Open Win Task Blocker";
+    public string TrayStatusEnabled => IsSpanish ? "Estado: ● Bloqueo Activo" : "Status: ● Block Enabled";
+    public string TrayStatusDisabled => IsSpanish ? "Estado: ● Bloqueo Desactivado" : "Status: ● Block Disabled";
+    public string TrayActionStop => IsSpanish ? "⏹ Detener Bloqueo" : "⏹ Stop Blocking";
+    public string TrayActionStart => IsSpanish ? "▶ Iniciar Bloqueo" : "▶ Start Blocking";
     public string TrayPauseResumeText => IsSpanish ? "Iniciar / Detener Bloqueo" : "Start / Stop Blocking";
     public string TrayExitText => IsSpanish ? "Salir completamente" : "Exit Completely";
 

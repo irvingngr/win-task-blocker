@@ -169,21 +169,21 @@
                             </StackPanel>
                         </Button>
 
-                        <!-- Protection Status Pill (Block Enabled / Block Disabled) -->
-                        <Border x:Name="HeaderEngineBadge"
+                        <!-- Protection Status Toggle Button (Block Enabled / Block Disabled) -->
+                        <Button x:Name="HeaderEngineBadge"
+                                Style="{StaticResource GlassButtonStyle}"
                                 Background="#2822C55E"
                                 BorderBrush="#6622C55E"
                                 BorderThickness="1"
-                                CornerRadius="12"
-                                Padding="10,4"
+                                Padding="11,4"
                                 Margin="0,0,10,0"
-                                Cursor="Hand"
-                                MouseLeftButtonUp="ToggleEngine_Click">
+                                ToolTip="{Binding HeaderToggleTooltip}"
+                                Click="ToggleEngine_Click">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <Ellipse x:Name="EngineStatusDot" Width="8" Height="8" Fill="#4ADE80" Margin="0,0,6,0"/>
                                 <TextBlock x:Name="EngineStatusHeaderText" Text="{Binding ProtectionActive}" Foreground="White" FontSize="11.5" FontWeight="SemiBold"/>
                             </StackPanel>
-                        </Border>
+                        </Button>
 
                         <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="{Binding MinTooltip}" Click="MinimizeWindow_Click" Content="—"/>
                         <Button Style="{StaticResource TitleBarButtonStyle}" ToolTip="{Binding MaxTooltip}" Click="MaximizeWindow_Click" Content="▢"/>
@@ -241,6 +241,15 @@
                                 <StackPanel Orientation="Horizontal">
                                     <Ellipse Width="8" Height="8" Fill="#4ADE80" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                     <TextBlock Text="{Binding NavStartup}"/>
+                                </StackPanel>
+                            </RadioButton>
+
+                            <RadioButton x:Name="NavHostsBtn"
+                                         Style="{StaticResource NavRadioButtonStyle}"
+                                         Checked="NavButton_Checked">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="8" Height="8" Fill="#FB7185" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding NavHosts}"/>
                                 </StackPanel>
                             </RadioButton>
 
@@ -885,6 +894,186 @@
                         </Border>
                     </Grid>
 
+                    <!-- ==================== VIEW 3B: HOSTS FILE MANAGER (ADMIN) ==================== -->
+                    <Grid x:Name="ViewHostsManager" Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Header & Backup / Revert / Save Toolbar -->
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock Text="{Binding HostsViewTitle}" Foreground="White" FontSize="19" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding HostsViewSubtitle}" Foreground="#CBD5E1" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Style="{StaticResource GlassButtonStyle}" Margin="0,0,7,0" Click="HostsBackup_Click" Content="{Binding HostsBackupBtn}"/>
+                                <Button x:Name="HostsRevertBtn" Style="{StaticResource GlassButtonStyle}" Margin="0,0,7,0" Click="HostsRevert_Click" Content="{Binding HostsRevertBtn}"/>
+                                <Button Style="{StaticResource AccentButtonStyle}" Click="HostsSave_Click" Content="{Binding HostsSaveBtn}"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Brief Explanation & Effects Banner -->
+                        <Border Grid.Row="1"
+                                Background="#1E0F172A"
+                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="12,9"
+                                Margin="0,0,0,10">
+                            <StackPanel>
+                                <TextBlock Text="{Binding HostsInfoTitle}" Foreground="{DynamicResource ThemeAccentPrimaryBrush}" FontSize="12" FontWeight="Bold" Margin="0,0,0,3"/>
+                                <TextBlock Text="{Binding HostsInfoBody}" Foreground="#CBD5E1" FontSize="11.2" TextWrapping="Wrap" LineHeight="16"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Add New Host Entry Bar with Safe Suggested Blocking IPs -->
+                        <Border Grid.Row="2"
+                                Background="#22FFFFFF"
+                                BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                Padding="11,9"
+                                Margin="0,0,0,10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="210"/>
+                                    <ColumnDefinition Width="1.2*"/>
+                                    <ColumnDefinition Width="1*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="{Binding HostsIpLabel}" Foreground="#CBD5E1" FontSize="11" Margin="0,0,0,3"/>
+                                    <ComboBox x:Name="HostIpComboBox" IsEditable="True" Padding="6,4" SelectedIndex="0" FontSize="12">
+                                        <ComboBoxItem Content="0.0.0.0" Tag="Safe Null Route"/>
+                                        <ComboBoxItem Content="127.0.0.1" Tag="Localhost Loopback"/>
+                                        <ComboBoxItem Content="::1" Tag="IPv6 Localhost"/>
+                                    </ComboBox>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                                    <TextBlock Text="{Binding HostsDomainLabel}" Foreground="#CBD5E1" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="HostDomainInputBox" Style="{StaticResource GlassTextBoxStyle}" Padding="8,5"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" Margin="0,0,10,0">
+                                    <TextBlock Text="{Binding HostsCommentLabel}" Foreground="#CBD5E1" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="HostCommentInputBox" Style="{StaticResource GlassTextBoxStyle}" Padding="8,5"/>
+                                </StackPanel>
+
+                                <Button Grid.Column="3"
+                                        Style="{StaticResource AccentButtonStyle}"
+                                        VerticalAlignment="Bottom"
+                                        Click="HostsAddEntry_Click"
+                                        Content="{Binding HostsAddBtn}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Hosts Entries Table -->
+                        <Border Grid.Row="3"
+                                Background="#1EFFFFFF"
+                                BorderBrush="#35FFFFFF"
+                                BorderThickness="1"
+                                CornerRadius="12"
+                                Padding="6">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="32"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <Border Grid.Row="0" BorderBrush="#28FFFFFF" BorderThickness="0,0,0,1" Padding="12,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="42"/>
+                                            <ColumnDefinition Width="135"/>
+                                            <ColumnDefinition Width="1.2*"/>
+                                            <ColumnDefinition Width="1*"/>
+                                            <ColumnDefinition Width="42"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox x:Name="HostsSelectAllCheckBox" Grid.Column="0" VerticalAlignment="Center" IsChecked="True" Click="HostsSelectAllCheckBox_Click"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding HostsColIp}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding HostsColDomain}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="3" Text="{Binding HostsColComment}" Foreground="#CBD5E1" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
+                                <ListBox x:Name="HostsEntriesListBox"
+                                         Grid.Row="1"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         HorizontalContentAlignment="Stretch"
+                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemContainerStyle>
+                                        <Style TargetType="ListBoxItem">
+                                            <Setter Property="Padding" Value="0"/>
+                                            <Setter Property="Margin" Value="0,2"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListBoxItem">
+                                                        <Border Background="#14FFFFFF"
+                                                                BorderBrush="#26FFFFFF"
+                                                                BorderThickness="1"
+                                                                CornerRadius="9"
+                                                                Padding="12,7"
+                                                                Margin="2,1,4,1">
+                                                            <ContentPresenter/>
+                                                        </Border>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListBox.ItemContainerStyle>
+
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid VerticalAlignment="Center">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="42"/>
+                                                    <ColumnDefinition Width="135"/>
+                                                    <ColumnDefinition Width="1.2*"/>
+                                                    <ColumnDefinition Width="1*"/>
+                                                    <ColumnDefinition Width="42"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center"/>
+
+                                                <Border Grid.Column="1"
+                                                        Background="{DynamicResource ThemeAccentSoftBgBrush}"
+                                                        BorderBrush="{DynamicResource ThemeAccentBorderBrush}"
+                                                        BorderThickness="1"
+                                                        CornerRadius="6"
+                                                        Padding="8,2.5"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding IpAddress}" Foreground="White" FontWeight="SemiBold" FontSize="11.5"/>
+                                                </Border>
+
+                                                <TextBlock Grid.Column="2" Text="{Binding Domain}" Foreground="White" FontWeight="SemiBold" FontSize="12.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,10,0"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Comment}" Foreground="#CBD5E1" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0"/>
+
+                                                <Button Grid.Column="4"
+                                                        Content="✕"
+                                                        Style="{StaticResource TitleBarButtonStyle}"
+                                                        Width="28" Height="28"
+                                                        Tag="{Binding}"
+                                                        Click="DeleteHostEntryRow_Click"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
                     <!-- ==================== VIEW 4: PREFERENCES & GLASS CUSTOMIZATION ==================== -->
                     <Grid x:Name="ViewPreferences" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
@@ -1194,9 +1383,21 @@
 
                                     <StackPanel Grid.Column="0">
                                         <TextBlock Text="{Binding ModalSearchLabel}" Foreground="#CBD5E1" FontSize="12" Margin="0,0,0,4"/>
-                                        <TextBox x:Name="ModalProcessInputBox"
-                                                 Style="{StaticResource GlassTextBoxStyle}"
-                                                 TextChanged="ModalProcessInputBox_TextChanged"/>
+                                        <Grid>
+                                            <TextBox x:Name="ModalProcessInputBox"
+                                                     Style="{StaticResource GlassTextBoxStyle}"
+                                                     Padding="10,6.5,32,6.5"
+                                                     TextChanged="ModalProcessInputBox_TextChanged"/>
+                                            <Button x:Name="ClearModalSearchBtn"
+                                                    Content="✕"
+                                                    Visibility="Collapsed"
+                                                    Style="{StaticResource TitleBarButtonStyle}"
+                                                    Width="24" Height="24"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,5,0"
+                                                    Click="ClearModalSearchBtn_Click"/>
+                                        </Grid>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom" Margin="10,0,0,0">

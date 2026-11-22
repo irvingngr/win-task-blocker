@@ -17,6 +17,7 @@ public partial class MainWindow : Window
 {
     private readonly ConfigService _configService = new();
     private readonly StartupManagerService _startupService = new();
+    private readonly HostsFileService _hostsService = new();
     private readonly ProcessBlockerEngine _engine;
     private readonly LocalizationService _loc = LocalizationService.Instance;
 
@@ -26,12 +27,14 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<BlockedTaskItem> _blockedTasks = new();
     private readonly ObservableCollection<ConditionalRule> _conditionalRules = new();
     private readonly ObservableCollection<StartupEntry> _startupEntries = new();
+    private readonly ObservableCollection<HostEntryItem> _hostEntries = new();
     private readonly ObservableCollection<QuickProfileSidebarItem> _quickProfiles = new();
     private List<ActiveProcessInfo> _cachedActiveProcesses = new();
 
     private ICollectionView? _blockedTasksView;
     private ICollectionView? _conditionalRulesView;
     private ICollectionView? _startupEntriesView;
+    private ICollectionView? _hostEntriesView;
 
     private AppPersistedState _persistedState = new();
     private string _activeProfileFilter = string.Empty;
@@ -96,11 +99,16 @@ public partial class MainWindow : Window
         if (_conditionalRules.Count > 0)
             ConditionalRulesListBox.SelectedIndex = 0;
 
-        // Load Windows startup entries asynchronously after initial render
+        // Load Windows startup entries and Hosts file entries asynchronously after initial render
         _startupEntriesView = CollectionViewSource.GetDefaultView(_startupEntries);
         _startupEntriesView.Filter = FilterStartupEntryItem;
         StartupItemsListBox.ItemsSource = _startupEntriesView;
         _ = Dispatcher.InvokeAsync(RefreshStartupEntriesList, System.Windows.Threading.DispatcherPriority.Background);
+
+        _hostEntriesView = CollectionViewSource.GetDefaultView(_hostEntries);
+        _hostEntriesView.Filter = FilterHostEntryItem;
+        HostsEntriesListBox.ItemsSource = _hostEntriesView;
+        _ = Dispatcher.InvokeAsync(RefreshHostsEntriesList, System.Windows.Threading.DispatcherPriority.Background);
 
         // 4. Build dynamic Quick Profiles in sidebar
         QuickProfilesItemsControl.ItemsSource = _quickProfiles;
@@ -151,11 +159,13 @@ public partial class MainWindow : Window
         }
         else
         {
-            // Reveal window + enable DWM Acrylic Blur ONLY after the entire WPF visual tree has rendered
+            // Reveal window FIRST with Opacity = 1, then apply DWM Acrylic Blur on Render pass so transparency works reliably
             _isWindowRevealed = true;
-            AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: _pendingAcrylicAlpha, tintBgr: _pendingAcrylicTintBgr);
             ShowInTaskbar = true;
             Opacity = 1;
+            Dispatcher.InvokeAsync(
+                () => AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: _pendingAcrylicAlpha, tintBgr: _pendingAcrylicTintBgr),
+                System.Windows.Threading.DispatcherPriority.Render);
         }
 
         // Close splash screen smoothly now that the complete window is visible
@@ -175,7 +185,9 @@ public partial class MainWindow : Window
         Show();
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
-        AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: _pendingAcrylicAlpha, tintBgr: _pendingAcrylicTintBgr);
+        Dispatcher.InvokeAsync(
+            () => AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: _pendingAcrylicAlpha, tintBgr: _pendingAcrylicTintBgr),
+            System.Windows.Threading.DispatcherPriority.Render);
         Activate();
         Topmost = true;
         Topmost = false;
@@ -195,7 +207,6 @@ public partial class MainWindow : Window
     {
         UpdateFlagVisual();
         if (_trayOpenItem != null) _trayOpenItem.Text = _loc.TrayOpenText;
-        if (_trayPauseItem != null) _trayPauseItem.Text = _loc.TrayPauseResumeText;
         if (_trayExitItem != null) _trayExitItem.Text = _loc.TrayExitText;
 
         foreach (var item in _blockedTasks)
@@ -291,6 +302,7 @@ public partial class MainWindow : Window
 
     // ==================== SYSTEM TRAY ====================
 
+    private Forms.ToolStripMenuItem? _trayStatusItem;
     private Forms.ToolStripMenuItem? _trayOpenItem;
     private Forms.ToolStripMenuItem? _trayPauseItem;
     private Forms.ToolStripMenuItem? _trayExitItem;
@@ -313,8 +325,12 @@ public partial class MainWindow : Window
             _trayIcon.DoubleClick += (_, _) => BringToFrontFromSecondInstance();
 
             var menu = new Forms.ContextMenuStrip();
+            _trayStatusItem = new Forms.ToolStripMenuItem(_loc.TrayStatusEnabled)
+            {
+                Enabled = false
+            };
             _trayOpenItem = new Forms.ToolStripMenuItem(_loc.TrayOpenText, null, (_, _) => BringToFrontFromSecondInstance());
-            _trayPauseItem = new Forms.ToolStripMenuItem(_loc.TrayPauseResumeText, null, (_, _) => ToggleEngine_Click(this, new RoutedEventArgs()));
+            _trayPauseItem = new Forms.ToolStripMenuItem(_loc.TrayActionStop, null, (_, _) => ToggleEngine_Click(this, new RoutedEventArgs()));
             _trayExitItem = new Forms.ToolStripMenuItem(_loc.TrayExitText, null, (_, _) =>
             {
                 _trayIcon.Visible = false;
@@ -323,13 +339,36 @@ public partial class MainWindow : Window
                 System.Windows.Application.Current.Shutdown();
             });
 
+            menu.Items.Add(_trayStatusItem);
+            menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add(_trayOpenItem);
             menu.Items.Add(_trayPauseItem);
             menu.Items.Add(new Forms.ToolStripSeparator());
             menu.Items.Add(_trayExitItem);
             _trayIcon.ContextMenuStrip = menu;
+
+            UpdateTrayMenuStatus();
         }
         catch { }
+    }
+
+    private void UpdateTrayMenuStatus()
+    {
+        bool running = _engine.IsRunning;
+        if (_trayStatusItem != null)
+        {
+            _trayStatusItem.Text = running ? _loc.TrayStatusEnabled : _loc.TrayStatusDisabled;
+            _trayStatusItem.Checked = running;
+        }
+        if (_trayPauseItem != null)
+        {
+            _trayPauseItem.Text = running ? _loc.TrayActionStop : _loc.TrayActionStart;
+        }
+        if (_trayIcon != null)
+        {
+            string statusShort = running ? _loc.ProtectionActive : _loc.EnginePaused;
+            _trayIcon.Text = $"Win Task Blocker — {statusShort}";
+        }
     }
 
     private void OnProcessBlocked(BlockEventNotification ev)
@@ -396,6 +435,8 @@ public partial class MainWindow : Window
             StartStopEngineBtn.Content = _loc.StartEngineBtn;
             FooterStatusText.Text = _loc.FooterStatusPaused;
         }
+
+        UpdateTrayMenuStatus();
     }
 
     // ==================== WINDOW CHROME & NAVIGATION ====================
@@ -439,6 +480,7 @@ public partial class MainWindow : Window
         ViewBlockedTasks.Visibility = NavBlockedBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewConditionalRules.Visibility = NavConditionalBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewStartupManager.Visibility = NavStartupBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        ViewHostsManager.Visibility = NavHostsBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewPreferences.Visibility = NavPrefsBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         ViewAboutCredits.Visibility = NavAboutBtn.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
 
@@ -463,6 +505,11 @@ public partial class MainWindow : Window
         {
             GlobalSearchBorder.Visibility = Visibility.Visible;
             GlobalSearchPlaceholder.Text = _loc.SearchPlaceholderStartup;
+        }
+        else if (NavHostsBtn.IsChecked == true)
+        {
+            GlobalSearchBorder.Visibility = Visibility.Visible;
+            GlobalSearchPlaceholder.Text = _loc.SearchPlaceholderHosts;
         }
         else
         {
@@ -519,6 +566,17 @@ public partial class MainWindow : Window
                entry.SourceLocation.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
+    private bool FilterHostEntryItem(object obj)
+    {
+        if (obj is not HostEntryItem entry) return false;
+        string query = GlobalSearchBox?.Text?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query)) return true;
+
+        return entry.IpAddress.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               entry.Domain.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               entry.Comment.Contains(query, StringComparison.OrdinalIgnoreCase);
+    }
+
     private void GlobalSearchBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         bool hasText = !string.IsNullOrEmpty(GlobalSearchBox.Text);
@@ -528,6 +586,7 @@ public partial class MainWindow : Window
         _blockedTasksView?.Refresh();
         _conditionalRulesView?.Refresh();
         _startupEntriesView?.Refresh();
+        _hostEntriesView?.Refresh();
     }
 
     private void ClearSearchBtn_Click(object sender, RoutedEventArgs e)
@@ -714,6 +773,9 @@ public partial class MainWindow : Window
 
     private void OpenAddTaskDialog_Click(object sender, RoutedEventArgs e)
     {
+        ModalProcessInputBox.Text = string.Empty;
+        ActiveProcessesModalList.SelectedItem = null;
+        ClearModalSearchBtn.Visibility = Visibility.Collapsed;
         AddTaskOverlay.Visibility = Visibility.Visible;
         RefreshActiveProcessesModal_Click(sender, e);
         ModalProcessInputBox.Focus();
@@ -721,6 +783,7 @@ public partial class MainWindow : Window
 
     private void CloseAddTaskDialog_Click(object sender, RoutedEventArgs e)
     {
+        ModalProcessInputBox.Text = string.Empty;
         AddTaskOverlay.Visibility = Visibility.Collapsed;
     }
 
@@ -732,7 +795,16 @@ public partial class MainWindow : Window
 
     private void ModalProcessInputBox_TextChanged(object sender, TextChangedEventArgs e)
     {
+        if (ClearModalSearchBtn != null)
+            ClearModalSearchBtn.Visibility = string.IsNullOrEmpty(ModalProcessInputBox.Text) ? Visibility.Collapsed : Visibility.Visible;
         FilterModalActiveProcesses();
+    }
+
+    private void ClearModalSearchBtn_Click(object sender, RoutedEventArgs e)
+    {
+        ModalProcessInputBox.Text = string.Empty;
+        ActiveProcessesModalList.SelectedItem = null;
+        ModalProcessInputBox.Focus();
     }
 
     private void FilterModalActiveProcesses()
@@ -774,6 +846,7 @@ public partial class MainWindow : Window
         if (dlg.ShowDialog() == true)
         {
             AddProcessByNameOrPath(dlg.FileName, dlg.FileName);
+            ModalProcessInputBox.Text = string.Empty;
             AddTaskOverlay.Visibility = Visibility.Collapsed;
         }
     }
@@ -783,6 +856,7 @@ public partial class MainWindow : Window
         if (ActiveProcessesModalList.SelectedItem is ActiveProcessInfo selected)
         {
             AddProcessByNameOrPath(selected.ProcessName, selected.ExecutablePath, selected.Description);
+            ModalProcessInputBox.Text = string.Empty;
             AddTaskOverlay.Visibility = Visibility.Collapsed;
             return;
         }
@@ -791,6 +865,7 @@ public partial class MainWindow : Window
         if (!string.IsNullOrWhiteSpace(manual))
         {
             AddProcessByNameOrPath(manual);
+            ModalProcessInputBox.Text = string.Empty;
             AddTaskOverlay.Visibility = Visibility.Collapsed;
         }
     }
@@ -953,6 +1028,125 @@ public partial class MainWindow : Window
                     ? $"Se eliminó '{entry.Name}' del Inicio de Windows."
                     : $"Removed '{entry.Name}' from Windows Startup.";
             }
+        }
+    }
+
+    // ==================== HOSTS FILE MANAGER (ADMIN) ====================
+
+    private void RefreshHostsEntriesList()
+    {
+        try
+        {
+            _hostEntries.Clear();
+            foreach (var entry in _hostsService.LoadEntries())
+                _hostEntries.Add(entry);
+            HostsRevertBtn.IsEnabled = _hostsService.HasBackup;
+        }
+        catch { }
+    }
+
+    private void HostsAddEntry_Click(object sender, RoutedEventArgs e)
+    {
+        string ip = HostIpComboBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(ip)) ip = "0.0.0.0";
+
+        string domain = HostDomainInputBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(domain)) return;
+
+        string comment = HostCommentInputBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(comment))
+            comment = "Blocked by Win Task Blocker";
+
+        _hostEntries.Insert(0, new HostEntryItem
+        {
+            IsEnabled = true,
+            IpAddress = ip,
+            Domain = domain,
+            Comment = comment
+        });
+
+        HostDomainInputBox.Text = string.Empty;
+        HostCommentInputBox.Text = string.Empty;
+
+        FooterStatusText.Text = _loc.IsSpanish
+            ? $"Entrada agregada ({ip} -> {domain}). Haz clic en 'Guardar Hosts' para aplicar."
+            : $"Entry added ({ip} -> {domain}). Click 'Save Hosts' to apply changes.";
+    }
+
+    private void DeleteHostEntryRow_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { Tag: HostEntryItem item })
+        {
+            _hostEntries.Remove(item);
+        }
+    }
+
+    private void HostsSelectAllCheckBox_Click(object sender, RoutedEventArgs e)
+    {
+        bool enable = HostsSelectAllCheckBox.IsChecked == true;
+        foreach (var entry in _hostEntries)
+            entry.IsEnabled = enable;
+    }
+
+    private void HostsSave_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _hostsService.SaveEntries(_hostEntries);
+            HostsRevertBtn.IsEnabled = _hostsService.HasBackup;
+            FooterStatusText.Text = _loc.IsSpanish
+                ? "Archivo hosts guardado y caché DNS limpiada correctamente."
+                : "Hosts file saved and DNS cache flushed successfully.";
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                _loc.IsSpanish
+                    ? $"No se pudo guardar el archivo hosts (se requieren permisos de administrador):\n{ex.Message}"
+                    : $"Could not save hosts file (Administrator privileges required):\n{ex.Message}",
+                "Win Task Blocker",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private void HostsBackup_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            _hostsService.CreateBackup();
+            HostsRevertBtn.IsEnabled = _hostsService.HasBackup;
+            FooterStatusText.Text = _loc.IsSpanish
+                ? $"Respaldo creado en {_hostsService.BackupFilePath}"
+                : $"Backup created at {_hostsService.BackupFilePath}";
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.Message, "Win Task Blocker", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void HostsRevert_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_hostsService.RestoreLastBackup())
+            {
+                RefreshHostsEntriesList();
+                FooterStatusText.Text = _loc.IsSpanish
+                    ? "Archivo hosts restaurado al último respaldo y caché DNS limpiada."
+                    : "Hosts file reverted to last backup and DNS cache flushed.";
+            }
+            else
+            {
+                FooterStatusText.Text = _loc.IsSpanish
+                    ? "No se encontró ningún respaldo previo."
+                    : "No previous backup file found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.Message, "Win Task Blocker", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
