@@ -36,6 +36,9 @@ public partial class MainWindow : Window
     private AppPersistedState _persistedState = new();
     private string _activeProfileFilter = string.Empty;
     private bool _isInitializing = true;
+    private bool _isWindowRevealed;
+    private byte _pendingAcrylicAlpha = 102;
+    private uint _pendingAcrylicTintBgr = 0x56260E;
     private Forms.NotifyIcon? _trayIcon;
 
     public MainWindow(bool isWindowsStartupLaunch = false, SplashScreen? splash = null)
@@ -43,11 +46,15 @@ public partial class MainWindow : Window
         _isWindowsStartupLaunch = isWindowsStartupLaunch;
         _splash = splash;
 
+        // Keep window completely invisible while initializing, binding, and laying out UI content
+        Opacity = 0;
+
         InitializeComponent();
         _engine = new ProcessBlockerEngine(_configService.LogFilePath);
         _engine.ProcessBlocked += OnProcessBlocked;
         _engine.CountsChanged += OnEngineCountsChanged;
         _loc.LanguageChanged += OnLanguageChanged;
+        ContentRendered += MainWindow_ContentRendered;
 
         // If launched from Windows Startup and minimized mode is requested, minimize before showing
         if (_isWindowsStartupLaunch)
@@ -125,36 +132,50 @@ public partial class MainWindow : Window
             ? $"[{DateTime.Now:HH:mm:ss}] Bloqueo activo ({_blockedTasks.Count} tareas, {_conditionalRules.Count} perfiles condicionales)."
             : $"[{DateTime.Now:HH:mm:ss}] Block enabled ({_blockedTasks.Count} tasks, {_conditionalRules.Count} conditional profiles).";
         ActivityFeedListBox.Items.Insert(0, initMsg);
+    }
 
-        // Close splash screen smoothly now that main UI is ready
-        try
-        {
-            _splash?.Close(TimeSpan.FromMilliseconds(220));
-            _splash = null;
-        }
-        catch { }
+    private void MainWindow_ContentRendered(object? sender, EventArgs e)
+    {
+        ContentRendered -= MainWindow_ContentRendered;
 
         // Handle minimized-to-tray on Windows Startup or user preference
         bool startMinimized = (_isWindowsStartupLaunch && _persistedState.Preferences.StartMinimizedOnWindowsStartup) ||
                               (!_persistedState.Preferences.ShowInForegroundOnStart && _isWindowsStartupLaunch);
+
         if (startMinimized)
         {
+            Opacity = 0;
             WindowState = WindowState.Minimized;
             ShowInTaskbar = false;
             Hide();
         }
         else
         {
+            // Reveal window + enable DWM Acrylic Blur ONLY after the entire WPF visual tree has rendered
+            _isWindowRevealed = true;
+            AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: _pendingAcrylicAlpha, tintBgr: _pendingAcrylicTintBgr);
             ShowInTaskbar = true;
+            Opacity = 1;
         }
+
+        // Close splash screen smoothly now that the complete window is visible
+        try
+        {
+            _splash?.Close(TimeSpan.FromMilliseconds(180));
+            _splash = null;
+        }
+        catch { }
     }
 
     public void BringToFrontFromSecondInstance()
     {
+        _isWindowRevealed = true;
         ShowInTaskbar = true;
+        Opacity = 1;
         Show();
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
+        AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: _pendingAcrylicAlpha, tintBgr: _pendingAcrylicTintBgr);
         Activate();
         Topmost = true;
         Topmost = false;
@@ -1122,8 +1143,14 @@ public partial class MainWindow : Window
         HighlightThemeButton(BtnThemeDark, themeName == "MidnightDark", primaryAccent, borderAccent);
         HighlightThemeButton(BtnThemeCyan, themeName == "ArcticCyan", primaryAccent, borderAccent);
 
-        // Update native Windows 10/11 DWM Acrylic Blur behind
-        AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: a, tintBgr: tintBgr);
+        _pendingAcrylicAlpha = a;
+        _pendingAcrylicTintBgr = tintBgr;
+
+        // Update native Windows 10/11 DWM Acrylic Blur behind only once the window is revealed
+        if (_isWindowRevealed)
+        {
+            AcrylicWindowHelper.EnableAcrylicBlur(this, alphaOpacity: a, tintBgr: tintBgr);
+        }
 
         _persistedState.Preferences.AccentTheme = themeName;
         _persistedState.Preferences.GlassOpacity = opacity;

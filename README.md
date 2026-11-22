@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Windows 10/11" />
   <img src="https://img.shields.io/badge/.NET-8.0%20WPF%20ReadyToRun-0284C7?style=flat-square&logo=dotnet" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/Languages-English%20%26%20Spanish-22C55E?style=flat-square" alt="Bilingual EN/ES" />
-  <img src="https://img.shields.io/badge/Version-2.0.2-38BDF8?style=flat-square" alt="v2.0.2" />
+  <img src="https://img.shields.io/badge/Version-2.0.3-38BDF8?style=flat-square" alt="v2.0.3" />
 </p>
 
 ---
@@ -62,5 +62,5 @@ dotnet publish WinTaskBlocker.csproj -c Release -r win-x64 --self-contained true
 ## 👤 Credits & Version Control
 
 - **Crafted by**: **Irving Ngr**
-- **Current Version**: `v2.0.2`
+- **Current Version**: `v2.0.3`
 - **Compatibility**: Legacy Task Blocker v1.5 `config.ini` format

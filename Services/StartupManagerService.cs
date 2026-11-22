@@ -259,37 +259,120 @@ public class StartupManagerService
             if (string.IsNullOrWhiteSpace(exePath)) return;
 
             string args = startMinimized ? "--startup --minimized" : "--startup";
-            using var runKey = Registry.CurrentUser.CreateSubKey(RunKeyPath, writable: true);
+
+            // Remove HKCU\Run entry for WinTaskBlocker because Windows blocks requireAdministrator EXEs in HKCU\Run
+            try
+            {
+                using var runKey = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: true);
+                runKey?.DeleteValue(appName, throwOnMissingValue: false);
+                using var approvedKey = Registry.CurrentUser.OpenSubKey(ApprovedRunKeyPath, writable: true);
+                approvedKey?.DeleteValue(appName, throwOnMissingValue: false);
+            }
+            catch { }
+
             if (enable)
             {
-                runKey?.SetValue(appName, $"\"{exePath}\" {args}", RegistryValueKind.String);
-
-                using var approvedKey = Registry.CurrentUser.CreateSubKey(ApprovedRunKeyPath, writable: true);
-                byte[] enabledBytes = new byte[12];
-                enabledBytes[0] = 0x02;
-                approvedKey?.SetValue(appName, enabledBytes, RegistryValueKind.Binary);
-
-                // Also register an elevated ONLOGON task so requireAdministrator launches at Windows login without UAC block
                 _ = Task.Run(() =>
                 {
+                    string? tempXml = null;
                     try
                     {
+                        string userId = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+                        string exeDir = Path.GetDirectoryName(exePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+
+                        string escUser = System.Security.SecurityElement.Escape(userId) ?? userId;
+                        string escExe = System.Security.SecurityElement.Escape(exePath) ?? exePath;
+                        string escArgs = System.Security.SecurityElement.Escape(args) ?? args;
+                        string escDir = System.Security.SecurityElement.Escape(exeDir) ?? exeDir;
+
+                        string taskXml = $@"<?xml version=""1.0"" encoding=""UTF-16""?>
+<Task version=""1.4"" xmlns=""http://schemas.microsoft.com/windows/2004/02/mit/task"">
+  <RegistrationInfo>
+    <Author>{escUser}</Author>
+    <Description>Win Task Blocker — Automatic Startup Guardian</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <LogonTrigger>
+      <Enabled>true</Enabled>
+      <UserId>{escUser}</UserId>
+      <Delay>PT3S</Delay>
+    </LogonTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id=""Author"">
+      <UserId>{escUser}</UserId>
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>false</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <DisallowStartOnRemoteAppSession>false</DisallowStartOnRemoteAppSession>
+    <UseUnifiedSchedulingEngine>true</UseUnifiedSchedulingEngine>
+    <WakeToRun>false</WakeToRun>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <Priority>5</Priority>
+  </Settings>
+  <Actions Context=""Author"">
+    <Exec>
+      <Command>{escExe}</Command>
+      <Arguments>{escArgs}</Arguments>
+      <WorkingDirectory>{escDir}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>";
+
+                        tempXml = Path.Combine(Path.GetTempPath(), $"WinTaskBlocker_Startup_{Guid.NewGuid():N}.xml");
+                        File.WriteAllText(tempXml, taskXml, System.Text.Encoding.Unicode);
+
                         using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                         {
                             FileName = "schtasks.exe",
-                            Arguments = $"/Create /TN \"WinTaskBlocker\" /TR \"\\\"{exePath}\\\" {args}\" /SC ONLOGON /RL HIGHEST /F",
+                            Arguments = $"/Create /TN \"{appName}\" /XML \"{tempXml}\" /F",
                             CreateNoWindow = true,
                             UseShellExecute = false,
                             WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
                         });
-                        p?.WaitForExit(1500);
+                        p?.WaitForExit(3000);
+
+                        if (p == null || p.ExitCode != 0)
+                        {
+                            using var fallback = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = "schtasks.exe",
+                                Arguments = $"/Create /TN \"{appName}\" /TR \"\\\"{exePath}\\\" {args}\" /SC ONLOGON /RL HIGHEST /F",
+                                CreateNoWindow = true,
+                                UseShellExecute = false,
+                                WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                            });
+                            fallback?.WaitForExit(2000);
+                        }
                     }
                     catch { }
+                    finally
+                    {
+                        if (tempXml != null)
+                        {
+                            try { File.Delete(tempXml); } catch { }
+                        }
+                    }
                 });
             }
             else
             {
-                runKey?.DeleteValue(appName, throwOnMissingValue: false);
                 _ = Task.Run(() =>
                 {
                     try
@@ -297,12 +380,12 @@ public class StartupManagerService
                         using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                         {
                             FileName = "schtasks.exe",
-                            Arguments = "/Delete /TN \"WinTaskBlocker\" /F",
+                            Arguments = $"/Delete /TN \"{appName}\" /F",
                             CreateNoWindow = true,
                             UseShellExecute = false,
                             WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
                         });
-                        p?.WaitForExit(1500);
+                        p?.WaitForExit(2000);
                     }
                     catch { }
                 });
