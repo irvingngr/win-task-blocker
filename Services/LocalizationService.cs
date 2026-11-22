@@ -31,7 +31,7 @@ public class LocalizationService : INotifyPropertyChanged
     }
 
     // Header & Window (Simplified status and engine button labels as requested)
-    public string AppSubtitle => IsSpanish ? "v2.0.4 Edición Cristal Acrílico" : "v2.0.4 Acrylic Glass Edition";
+    public string AppSubtitle => IsSpanish ? "v2.0.5 Edición Cristal Acrílico" : "v2.0.5 Acrylic Glass Edition";
     public string ProtectionActive => IsSpanish ? "Bloqueo Activo" : "Block Enabled";
     public string EnginePaused => IsSpanish ? "Bloqueo Desactivado" : "Block Disabled";
     public string HeaderToggleTooltip => IsSpanish
@@ -228,7 +228,7 @@ public class LocalizationService : INotifyPropertyChanged
     public string HostsColComment => IsSpanish ? "Comentario" : "Comment";
 
     // About / Credits Card
-    public string AboutHeaderTitle => "Win Task Blocker v2.0.4 — Process & Startup Guardian";
+    public string AboutHeaderTitle => "Win Task Blocker v2.0.5 — Process & Startup Guardian";
     public string AboutBadgeText => IsSpanish
         ? "Optimizado para Windows 10 y Windows 11 (x64)"
         : "Optimized for Windows 10 & Windows 11 (x64)";
@@ -240,10 +240,10 @@ public class LocalizationService : INotifyPropertyChanged
         : "Disclaimer: This software is provided \"as is\" without warranty. The developer is not responsible for system instability resulting from blocking critical operating system processes.";
     public string CraftedByPrefix => IsSpanish ? "Creado por" : "Crafted by";
     public string PoweredBySuffix => IsSpanish
-        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.4"
-        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.4";
+        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.5"
+        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.5";
     public string CardVersionHeader => IsSpanish ? "CONTROL DE VERSIÓN" : "VERSION CONTROL";
-    public string CardVersionTitle => IsSpanish ? "v2.0.4 Estable" : "v2.0.4 Stable";
+    public string CardVersionTitle => IsSpanish ? "v2.0.5 Estable" : "v2.0.5 Stable";
     public string CardVersionDesc => IsSpanish
         ? "Motor nativo .NET 8.0 WPF + Arranque Rápido ReadyToRun + Cristal Acrílico"
         : ".NET 8.0 Native WPF + ReadyToRun Fast Boot + Win32 DWM Acrylic Glass";

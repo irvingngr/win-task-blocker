@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using WinTaskBlocker.Models;
@@ -16,7 +17,11 @@ public class HostsFileService
     public string BackupFilePath { get; }
 
     private static readonly Regex HostLineRegex = new(
-        @"^(?<commented>#\s*)?(?<ip>(?:\d{1,3}\.){3}\d{1,3}|[0-9a-fA-F:]+)\s+(?<domains>[^#]+?)(?:\s*#\s*(?<comment>.*))?$",
+        @"^(?<commented>#\s*)?(?<ip>(?:\d{1,3}\.){3}\d{1,3}|[0-9a-fA-F:]*:[0-9a-fA-F:]*)\s+(?<domains>[^#]+?)(?:\s*#\s*(?<comment>.*))?$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex ValidHostnameRegex = new(
+        @"^[a-zA-Z0-9._-]+$",
         RegexOptions.Compiled);
 
     public HostsFileService()
@@ -52,10 +57,18 @@ public class HostsFileService
             string domainsPart = match.Groups["domains"].Value.Trim();
             string comment = match.Groups["comment"].Value.Trim();
 
-            // Split multiple domains on one line into individual entries for clean UI management
+            // Strictly validate that IP is a genuine IPv4 or IPv6 address (prevents words like "be" in comments from matching)
+            if (!IsValidIpAddress(ip)) continue;
+
+            // Ignore Microsoft's built-in sample/documentation lines at the top of the default Windows hosts file
+            if (!isEnabled && IsMicrosoftSampleEntry(ip, domainsPart))
+                continue;
+
             var domains = domainsPart.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
             foreach (var domain in domains)
             {
+                if (!ValidHostnameRegex.IsMatch(domain)) continue;
+
                 entries.Add(new HostEntryItem
                 {
                     IsEnabled = isEnabled,
@@ -69,6 +82,28 @@ public class HostsFileService
         return entries;
     }
 
+    private static bool IsValidIpAddress(string ip)
+    {
+        if (string.IsNullOrWhiteSpace(ip)) return false;
+        // IPv6 must contain ':'; IPv4 must contain '.'
+        if (!ip.Contains('.') && !ip.Contains(':')) return false;
+        return IPAddress.TryParse(ip, out _);
+    }
+
+    private static bool IsMicrosoftSampleEntry(string ip, string domainsPart)
+    {
+        // Microsoft's default hosts template examples
+        if (ip == "102.54.94.97" && domainsPart.Contains("rhino.acme.com", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (ip == "38.25.63.10" && domainsPart.Contains("x.acme.com", StringComparison.OrdinalIgnoreCase))
+            return true;
+        if ((ip == "127.0.0.1" || ip == "::1") &&
+            string.Equals(domainsPart.Trim(), "localhost", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
     public void SaveEntries(IEnumerable<HostEntryItem> entries)
     {
         // Auto-create an initial backup if none exists yet before first modification
@@ -79,6 +114,11 @@ public class HostsFileService
 
         var sb = new StringBuilder();
         sb.AppendLine("# Copyright (c) 1993-2009 Microsoft Corp.");
+        sb.AppendLine("#");
+        sb.AppendLine("# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.");
+        sb.AppendLine("# localhost name resolution is handled within DNS itself.");
+        sb.AppendLine("#\t127.0.0.1       localhost");
+        sb.AppendLine("#\t::1             localhost");
         sb.AppendLine("# Managed by Win Task Blocker (Hosts File Manager)");
         sb.AppendLine($"# Last updated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine();
