@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/.NET-8.0%20WPF%20ReadyToRun-0284C7?style=flat-square&logo=dotnet" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/Languages-English%20%26%20Spanish-22C55E?style=flat-square" alt="Bilingual EN/ES" />
   <img src="https://img.shields.io/badge/Version-2.0.5-38BDF8?style=flat-square" alt="v2.0.5" />
+  <img src="https://img.shields.io/badge/License-MIT-FBBF24?style=flat-square" alt="MIT License" />
 </p>
 
 ---
