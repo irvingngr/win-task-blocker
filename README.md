@@ -5,7 +5,7 @@
 <h1 align="center">Win Task Blocker</h1>
 
 <p align="center">
-  <strong>Modern, ultra-lightweight process blocker, conditional dependency guardian, and Windows startup manager for Windows 10 &amp; Windows 11.</strong>
+  <strong>Modern, ultra-lightweight process blocker, conditional dependency guardian, Windows startup manager, and Hosts file manager for Windows 10 &amp; Windows 11.</strong>
 </p>
 
 <p align="center">
@@ -17,33 +17,62 @@
 
 ---
 
-## 🌐 Bilingual Interface (English & Spanish)
+## ✨ Key Features
 
-**Win Task Blocker** is fully available in **both English and Spanish** (`EN` / `ES`):
+1. **Real-Time Process Blocker & Predictive Search**:
+   - Intercepts and terminates unwanted executables in real time using a low-CPU background engine + WMI process trace events (`SeDebugPrivilege` + multi-stage Win32 `TerminateProcess`).
+   - **Predictive Autocomplete Search**: Filter active processes or type executable names with instant suggestions, native `.exe` icon extraction, and block counters.
+   - **Quick Toggle & Context-Aware Search**: Toggle protection anytime from the top **Block Enabled / Block Disabled** button or the System Tray icon, and filter across **Blocked Tasks**, **Conditional Rules**, **Windows Startup**, and **Hosts Manager**.
+2. **Conditional Blocking & Dynamic Profiles**:
+   - **Parent/Child Dependency Guardian**: Automatically block background services or telemetry (such as `adobe crash processor.exe`, `adobeipcbroker.exe`, `ccxprocess.exe`, `CoreSync.exe`, `CCLibrary.exe`) **only when their main parent applications** (`Photoshop.exe`, `Illustrator.exe`, `AfterFX.exe`, `Premiere Pro.exe`, `Acrobat.exe`) are closed—or block heavy tools while a game is running (**Gaming / Focus Mode**).
+   - **Dynamic Quick Profiles**: Adding, editing, or deleting profiles immediately updates the **Quick Profiles** sidebar.
+3. **Windows Automatic Startup Manager**:
+   - Inspect, enable, disable, add, or remove startup programs across the Windows Registry (`HKCU\...\Run`, `HKLM\...\Run`, `StartupApproved\Run`) and the Windows `Startup` folder without losing registry entries when disabled.
+4. **Hosts File Manager (Admin)**:
+   - Edit `C:\Windows\System32\drivers\etc\hosts` directly from a clean visual table with **suggested safe blocking IPs** (`0.0.0.0`, `127.0.0.1`, `::1`), enable/disable toggles (`#`), one-click **Backup**, **Revert to Backup**, and automatic **DNS cache flush** (`ipconfig /flushdns`) on save.
+5. **Native Acrylic Glass Interface & Dynamic Crystal Accents**:
+   - Borderless integrated header with native Windows 10/11 DWM Acrylic Blur and single 8px rounded corners.
+   - Real-time **Crystal Opacity Slider** (`15%` – `95%`) and 4 selectable crystal finishes (**Windows Blue**, **Purple Nebula**, **Midnight Dark**, and **Arctic Cyan**) that dynamically update glass tint, button borders, badges, and accented texts.
+6. **Instant Cold-Boot, Native Splash Screen & Minimized Windows Startup**:
+   - Compiled with **ReadyToRun (R2R)** native precompilation and asynchronous background `.exe` icon resolution, accompanied by a native **Splash Screen**.
+   - Includes **"Run on Windows startup (minimized)"** via Task Scheduler XML (works reliably on battery or AC power) and automatically starts in **Block Enabled** mode.
+7. **Single-Instance Guard & Legacy `config.ini` Compatibility**:
+   - Enforces a single running instance via a system-wide `Mutex` (re-launching brings the active window to the front).
+   - Reads and writes the classic `True|process.exe|count` format (`config.ini`) alongside `taskblocker.state.json`.
 
 ---
 
-## ✨ Key Features
+## 📸 Screenshots
 
-1. **Native Acrylic Glass Interface & Dynamic Crystal Accents**:
-2. **Instant Cold-Boot, Native Splash Screen & Minimized Windows Startup**:
-   - Compiled with **ReadyToRun (R2R)** native precompilation and asynchronous background `.exe` icon resolution for near-instant cold startup, accompanied by a sleek **Splash Screen** featuring the official logo.
-   - Includes **"Run on Windows startup (minimized)"** (`--startup --minimized`) and automatically starts in **Block Enabled** mode whenever the app launches (even if it was previously stopped).
-3. **Real-Time Low-CPU Interception & Predictive Search**:
-   - Event-driven WMI + lightweight process snapshot engine with clean **Block Enabled** / **Block Disabled** status and **Start** / **Stop** controls.
-   - **Predictive Autocomplete Search**: Filter active processes or type executable names with instant suggestions, native `.exe` icon extraction (`Icon.ExtractAssociatedIcon`), and block counters.
-   - **Context-Aware Top Search Bar**: Filters across **Blocked Tasks**, **Conditional Rules**, and **Windows Startup** entries, and automatically hides on tabs where search is not needed.
-4. **Conditional Blocking & Dynamic Profiles**:
-   - **Included Default Profiles**:
-     - **Adobe Suite**: Blocks `adobe crash processor.exe`, `adobeipcbroker.exe`, `ccxprocess.exe`, `Adobe Desktop Service.exe`, `CoreSync.exe`, and `acrotray.exe` when `Photoshop.exe`, `Illustrator.exe`, `AfterFX.exe`, `Premiere Pro.exe`, and `Acrobat.exe` are closed.
-     - **Gaming / Focus Mode**: Optionally blocks heavy background tools (`devenv.exe`, `java.exe`, `cscript.exe`) only while a game (`valorant.exe`, `cs2.exe`, `eldenring.exe`) is actively running.
-   - **Dynamic Quick Profiles**: Adding, editing, or deleting profiles immediately updates the **Quick Profiles** sidebar.
-5. **Windows Automatic Startup Manager**:
-   - Inspect, enable, disable, add, or remove startup programs across the Windows Registry (`HKCU\...\Run`, `HKLM\...\Run`, `StartupApproved\Run`) and the Windows `Startup` folder without losing registry entries when disabled.
-6. **Single-Instance Guard & System Tray Integration**:
-   - Enforces a single running instance via a system-wide `Mutex`. Launching the executable a second time automatically brings the active instance to the foreground (even if minimized to the System Tray).
-7. **100% Legacy `config.ini` Compatible**:
-   - Reads and writes the classic `True|process.exe|count` format (`config.ini`) alongside extended JSON state (`taskblocker.state.json`) for conditional rules and visual preferences.
+<p align="center">
+  <img src="Assets/screenshots/blocked-tasks.png" alt="Blocked Tasks List" width="880" />
+  <br/>
+  <em>Real-time Blocked Tasks List with native .exe icons, predictive search, and Quick Profiles</em>
+</p>
+
+<p align="center">
+  <img src="Assets/screenshots/conditional-rules.png" alt="Conditional Blocking and Profiles" width="880" />
+  <br/>
+  <em>Conditional Blocking &amp; Profiles (Adobe Suite &amp; Gaming / Focus Mode)</em>
+</p>
+
+<p align="center">
+  <img src="Assets/screenshots/hosts-manager.png" alt="Hosts File Manager" width="880" />
+  <br/>
+  <em>Admin Hosts File Manager with safe suggested IPs, backup, and one-click rollback</em>
+</p>
+
+<p align="center">
+  <img src="Assets/screenshots/preferences-glass.png" alt="Preferences and Acrylic Crystal Customization" width="880" />
+  <br/>
+  <em>System Preferences, Acrylic Crystal Customization, and Real-Time Activity Log</em>
+</p>
+
+<p align="center">
+  <img src="Assets/screenshots/about-credits.png" alt="About and Credits" width="880" />
+  <br/>
+  <em>About &amp; Credits</em>
+</p>
 
 ---
 
@@ -64,3 +93,4 @@ dotnet publish WinTaskBlocker.csproj -c Release -r win-x64 --self-contained true
 - **Crafted by**: **Irving Ngr**
 - **Current Version**: `v2.0.5`
 - **Compatibility**: Legacy Task Blocker v1.5 `config.ini` format
+- **Available Languages**: Also available in both **English** and **Spanish** (`EN` / `ES`) — switch anytime via the flag button in the titlebar.
