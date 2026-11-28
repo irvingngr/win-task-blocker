@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20(x64)-0078D4?style=flat-square&logo=windows" alt="Windows 10/11" />
   <img src="https://img.shields.io/badge/.NET-8.0%20WPF%20ReadyToRun-0284C7?style=flat-square&logo=dotnet" alt=".NET 8.0" />
   <img src="https://img.shields.io/badge/Languages-English%20%26%20Spanish-22C55E?style=flat-square" alt="Bilingual EN/ES" />
-  <img src="https://img.shields.io/badge/Version-2.0.5-38BDF8?style=flat-square" alt="v2.0.5" />
+  <img src="https://img.shields.io/badge/Version-2.0.6-38BDF8?style=flat-square" alt="v2.0.6" />
   <img src="https://img.shields.io/badge/License-MIT-FBBF24?style=flat-square" alt="MIT License" />
 </p>
 
@@ -27,8 +27,8 @@
 2. **Conditional Blocking & Dynamic Profiles**:
    - **Parent/Child Dependency Guardian**: Automatically block background services or telemetry (such as `adobe crash processor.exe`, `adobeipcbroker.exe`, `ccxprocess.exe`, `CoreSync.exe`, `CCLibrary.exe`) **only when their main parent applications** (`Photoshop.exe`, `Illustrator.exe`, `AfterFX.exe`, `Premiere Pro.exe`, `Acrobat.exe`) are closed—or block heavy tools while a game is running (**Gaming / Focus Mode**).
    - **Dynamic Quick Profiles**: Adding, editing, or deleting profiles immediately updates the **Quick Profiles** sidebar.
-3. **Windows Automatic Startup Manager**:
-   - Inspect, enable, disable, add, or remove startup programs across the Windows Registry (`HKCU\...\Run`, `HKLM\...\Run`, `StartupApproved\Run`) and the Windows `Startup` folder without losing registry entries when disabled.
+3. **Windows Automatic Startup Manager (Full Task Manager Parity)**:
+   - Inspect, enable, disable, add, or remove startup programs across **all Windows Task Manager sources**: 64-bit Registry (`HKCU\...\Run`, `HKLM\...\Run` + `StartupApproved\Run`), 32-bit WOW64 Registry (`HKLM\SOFTWARE\WOW6432Node\...\Run` + `StartupApproved\Run32`), User & Common Startup folders (`%APPDATA%\...\Startup` & `%ProgramData%\...\Startup` + `StartupApproved\StartupFolder`), and packaged UWP/MSIX apps (`AppModel\SystemAppData`).
 4. **Hosts File Manager (Admin)**:
    - Edit `C:\Windows\System32\drivers\etc\hosts` directly from a clean visual table with **suggested safe blocking IPs** (`0.0.0.0`, `127.0.0.1`, `::1`), enable/disable toggles (`#`), one-click **Backup**, **Revert to Backup**, and automatic **DNS cache flush** (`ipconfig /flushdns`) on save.
 5. **Native Acrylic Glass Interface & Dynamic Crystal Accents**:
@@ -92,6 +92,6 @@ dotnet publish WinTaskBlocker.csproj -c Release -r win-x64 --self-contained true
 ## 👤 Credits & Version Control
 
 - **Crafted by**: **Irving Ngr**
-- **Current Version**: `v2.0.5`
+- **Current Version**: `v2.0.6`
 - **Compatibility**: Legacy Task Blocker v1.5 `config.ini` format
 - **Available Languages**: Also available in both **English** and **Spanish** (`EN` / `ES`) — switch anytime via the flag button in the titlebar.

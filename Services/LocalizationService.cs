@@ -31,7 +31,7 @@ public class LocalizationService : INotifyPropertyChanged
     }
 
     // Header & Window (Simplified status and engine button labels as requested)
-    public string AppSubtitle => IsSpanish ? "v2.0.5 Edición Cristal Acrílico" : "v2.0.5 Acrylic Glass Edition";
+    public string AppSubtitle => IsSpanish ? "v2.0.6 Edición Cristal Acrílico" : "v2.0.6 Acrylic Glass Edition";
     public string ProtectionActive => IsSpanish ? "Bloqueo Activo" : "Block Enabled";
     public string EnginePaused => IsSpanish ? "Bloqueo Desactivado" : "Block Disabled";
     public string HeaderToggleTooltip => IsSpanish
@@ -66,8 +66,8 @@ public class LocalizationService : INotifyPropertyChanged
         ? "Buscar reglas condicionales, programas padre o procesos..."
         : "Search conditional rules, parent apps or target processes...";
     public string SearchPlaceholderStartup => IsSpanish
-        ? "Buscar programas de inicio automático de Windows..."
-        : "Search Windows startup programs or registry paths...";
+        ? "Buscar apps de inicio, registro (64/32-bit), Startup o UWP/MSIX..."
+        : "Search startup apps, registry (64/32-bit), Startup folders or UWP/MSIX...";
     public string SearchPlaceholderHosts => IsSpanish
         ? "Buscar entradas, IPs o dominios en el archivo hosts..."
         : "Search hosts entries, IPs, domains or comments...";
@@ -138,8 +138,8 @@ public class LocalizationService : INotifyPropertyChanged
         ? "Gestor de Inicio Automático de Windows"
         : "Windows Automatic Startup Manager";
     public string StartupViewSubtitle => IsSpanish
-        ? "Habilita, deshabilita o agrega aplicaciones que arrancan junto con Windows (Registro HKCU/HKLM y Carpeta Startup)."
-        : "Enable, disable, or add applications that launch at Windows startup (HKCU/HKLM Registry & Startup Folder).";
+        ? "Habilita, deshabilita o agrega apps que arrancan con Windows (Registro 64/32-bit, Carpetas Startup/ProgramData y Apps UWP/MSIX)."
+        : "Enable, disable, or add apps that launch at Windows startup (64/32-bit Registry, User/ProgramData Startup folders & UWP/MSIX apps).";
     public string RefreshBtn => IsSpanish ? "🔄 Actualizar" : "🔄 Refresh";
     public string AddStartupBtn => IsSpanish ? "＋ Agregar al Inicio" : "＋ Add to Startup";
 
@@ -228,7 +228,7 @@ public class LocalizationService : INotifyPropertyChanged
     public string HostsColComment => IsSpanish ? "Comentario" : "Comment";
 
     // About / Credits Card
-    public string AboutHeaderTitle => "Win Task Blocker v2.0.5 — Process & Startup Guardian";
+    public string AboutHeaderTitle => "Win Task Blocker v2.0.6 — Process & Startup Guardian";
     public string AboutBadgeText => IsSpanish
         ? "Optimizado para Windows 10 y Windows 11 (x64)"
         : "Optimized for Windows 10 & Windows 11 (x64)";
@@ -240,10 +240,10 @@ public class LocalizationService : INotifyPropertyChanged
         : "Disclaimer: This software is provided \"as is\" without warranty. The developer is not responsible for system instability resulting from blocking critical operating system processes.";
     public string CraftedByPrefix => IsSpanish ? "Creado por" : "Crafted by";
     public string PoweredBySuffix => IsSpanish
-        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.5"
-        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.5";
+        ? "• Compatible con config.ini (Task Blocker v1.5) • Control de Versión v2.0.6"
+        : "• Legacy config.ini (Task Blocker v1.5) Compatible • Version Control v2.0.6";
     public string CardVersionHeader => IsSpanish ? "CONTROL DE VERSIÓN" : "VERSION CONTROL";
-    public string CardVersionTitle => IsSpanish ? "v2.0.5 Estable" : "v2.0.5 Stable";
+    public string CardVersionTitle => IsSpanish ? "v2.0.6 Estable" : "v2.0.6 Stable";
     public string CardVersionDesc => IsSpanish
         ? "Motor nativo .NET 8.0 WPF + Arranque Rápido ReadyToRun + Cristal Acrílico"
         : ".NET 8.0 Native WPF + ReadyToRun Fast Boot + Win32 DWM Acrylic Glass";

@@ -1,18 +1,32 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Media;
 using WinTaskBlocker.Services;
 
 namespace WinTaskBlocker.Models;
 
+public enum StartupEntryKind
+{
+    RegistryRun,
+    RegistryRun32,
+    StartupFolderUser,
+    StartupFolderCommon,
+    PackagedApp
+}
+
 public class StartupEntry : INotifyPropertyChanged
 {
     private bool _isEnabled;
     private string _name = string.Empty;
+    private string _valueName = string.Empty;
     private string _command = string.Empty;
     private string _executablePath = string.Empty;
     private string _sourceLocation = string.Empty;
     private string _registryKeyPath = string.Empty;
+    private string _approvedRegistryKeyPath = string.Empty;
+    private string _packageFamilyName = string.Empty;
+    private StartupEntryKind _entryKind = StartupEntryKind.RegistryRun;
     private bool _isCurrentUser = true;
     private bool _isStartupFolder;
     private ImageSource? _icon;
@@ -27,6 +41,15 @@ public class StartupEntry : INotifyPropertyChanged
     {
         get => _name;
         set { _name = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Exact identifier in the backing store (Registry value name, Startup folder filename, or UWP StartupTask ID).
+    /// </summary>
+    public string ValueName
+    {
+        get => _valueName;
+        set { _valueName = value; OnPropertyChanged(); }
     }
 
     public string Command
@@ -53,6 +76,31 @@ public class StartupEntry : INotifyPropertyChanged
         set { _registryKeyPath = value; OnPropertyChanged(); }
     }
 
+    public string ApprovedRegistryKeyPath
+    {
+        get => _approvedRegistryKeyPath;
+        set { _approvedRegistryKeyPath = value; OnPropertyChanged(); }
+    }
+
+    public string PackageFamilyName
+    {
+        get => _packageFamilyName;
+        set { _packageFamilyName = value; OnPropertyChanged(); }
+    }
+
+    public StartupEntryKind EntryKind
+    {
+        get => _entryKind;
+        set
+        {
+            _entryKind = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsUwpApp));
+            OnPropertyChanged(nameof(CanDelete));
+            OnPropertyChanged(nameof(DeleteButtonVisibility));
+        }
+    }
+
     public bool IsCurrentUser
     {
         get => _isCurrentUser;
@@ -64,6 +112,12 @@ public class StartupEntry : INotifyPropertyChanged
         get => _isStartupFolder;
         set { _isStartupFolder = value; OnPropertyChanged(); }
     }
+
+    public bool IsUwpApp => EntryKind == StartupEntryKind.PackagedApp;
+
+    public bool CanDelete => EntryKind != StartupEntryKind.PackagedApp;
+
+    public Visibility DeleteButtonVisibility => CanDelete ? Visibility.Visible : Visibility.Hidden;
 
     public ImageSource? Icon
     {

@@ -37,18 +37,18 @@ jobs:
             -p:PublishReadyToRun=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=false `
-            -o publish/WinTaskBlocker_v2.0.5_Portable
-          Compress-Archive -Path publish/WinTaskBlocker_v2.0.5_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.5-win-x64-Portable.zip -Force
+            -o publish/WinTaskBlocker_v2.0.6_Portable
+          Compress-Archive -Path publish/WinTaskBlocker_v2.0.6_Portable/* -DestinationPath publish/WinTaskBlocker-v2.0.6-win-x64-Portable.zip -Force
 
       - name: Upload Portable Executable Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: WinTaskBlocker-v2.0.5-Windows-x64-Portable
+          name: WinTaskBlocker-v2.0.6-Windows-x64-Portable
           path: |
-            publish/WinTaskBlocker_v2.0.5_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0.5_Portable/config.ini
-            publish/WinTaskBlocker_v2.0.5_Portable/Assets/app.ico
-            publish/WinTaskBlocker-v2.0.5-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.6_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.6_Portable/config.ini
+            publish/WinTaskBlocker_v2.0.6_Portable/Assets/app.ico
+            publish/WinTaskBlocker-v2.0.6-win-x64-Portable.zip
 
       - name: Publish GitHub Release on Tag
         if: startsWith(github.ref, 'refs/tags/v')
@@ -58,16 +58,18 @@ jobs:
           body: |
             ## 🛡️ Win Task Blocker ${{ github.ref_name }}
 
-            Modern, ultra-lightweight process blocker, conditional dependency guardian, and Windows startup manager for Windows 10 & Windows 11.
+            Modern, ultra-lightweight process blocker, conditional dependency guardian, Windows startup manager, and Hosts file manager for Windows 10 & Windows 11.
 
             ### 🚀 What's New in ${{ github.ref_name }}
-            - ⚡ **Instant Cold-Boot & Native Splash Screen**: Precompiled with **ReadyToRun (R2R)** native x64 code, non-blocking background `.exe` icon resolution, and a native **Splash Screen** featuring the official Win Task Blocker logo.
-            - 🔇 **Run on Windows Startup (Minimized) & Auto-Block**: Added **"Run on Windows startup (minimized)"** option and guaranteed automatic **Block Enabled** state on startup (even if previously stopped).
-            - 💠 **Default 40% Windows Blue Crystal & Dynamic Theme Accents**: Defaults to **40% Opacity — Windows Blue**. Switching crystal finishes (**Windows Blue**, **Purple Nebula**, **Midnight Dark**, **Arctic Cyan**) now dynamically updates all button borders, selected rows, badges, and accented texts across the entire UI.
-            - 🎯 **Streamlined Controls & Default Profiles**: Simplified status/action labels (**Block Enabled**, **Block Disabled**, **Start**, **Stop** / **Bloqueo Activo**, **Bloqueo Desactivado**, **Iniciar**, **Detener**) and preconfigured **Adobe Suite** & **Gaming / Focus Mode** conditional profiles.
-            - 🌐 **Bilingual Interface (English & Spanish)**: Starts in **English** by default with an instant **flag toggle button** in the top titlebar (`EN` / `ES`).
+            - 🚀 **Complete Windows Task Manager Startup Parity**: `StartupManagerService` now enumerates and toggles **all** Windows Task Manager startup sources:
+              - **64-bit Registry Run**: `HKCU\...\Run` & `HKLM\...\Run` synced with `StartupApproved\Run`.
+              - **32-bit WOW64 Registry Run**: `HKLM\SOFTWARE\WOW6432Node\...\Run` synced with `StartupApproved\Run32`.
+              - **User & Common Startup Folders**: Both `%APPDATA%\...\Startup` and `%ProgramData%\...\Startup` (`CommonStartup`) synced natively via `StartupApproved\StartupFolder`.
+              - **UWP / MSIX Packaged Apps**: Detects Store/MSIX startup tasks under `AppModel\SystemAppData`, resolves friendly display names (including `SHLoadIndirectString` / `AppxManifest.xml`) and native icons, and toggles each via `State` (`EnabledByUser` / `DisabledByUser`).
+            - 🔍 **Enhanced Startup Search & UX**: Expanded startup search to match executable paths and UWP package family names, added full tooltips, widened source badges, and gracefully handles protected/policy-locked toggle errors.
+            - 💠 **Acrylic Glass Edition**: Native Windows 10/11 DWM Acrylic Blur, 4 dynamic crystal themes, ReadyToRun fast boot, Admin Hosts File Manager, and bilingual English / Spanish UI (`EN` / `ES`).
             - 👤 **About & Credits**: Crafted by **Irving Ngr** 🇻🇪 • 100% compatible with legacy `config.ini` (`True|process.exe|count`).
           files: |
-            publish/WinTaskBlocker-v2.0.5-win-x64-Portable.zip
-            publish/WinTaskBlocker_v2.0.5_Portable/WinTaskBlocker.exe
-            publish/WinTaskBlocker_v2.0.5_Portable/config.ini
+            publish/WinTaskBlocker-v2.0.6-win-x64-Portable.zip
+            publish/WinTaskBlocker_v2.0.6_Portable/WinTaskBlocker.exe
+            publish/WinTaskBlocker_v2.0.6_Portable/config.ini

@@ -563,6 +563,8 @@ public partial class MainWindow : Window
 
         return entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                entry.Command.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               entry.ExecutablePath.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+               entry.PackageFamilyName.Contains(query, StringComparison.OrdinalIgnoreCase) ||
                entry.SourceLocation.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -989,7 +991,16 @@ public partial class MainWindow : Window
         if (sender is System.Windows.Controls.CheckBox { Tag: StartupEntry entry } cb)
         {
             bool targetState = cb.IsChecked == true;
-            _startupService.ToggleStartupEntry(entry, targetState);
+            bool ok = _startupService.ToggleStartupEntry(entry, targetState);
+            if (!ok)
+            {
+                entry.IsEnabled = !targetState;
+                cb.IsChecked = entry.IsEnabled;
+                FooterStatusText.Text = _loc.IsSpanish
+                    ? $"No se pudo cambiar el inicio automático de '{entry.Name}' (permisos insuficientes o bloqueado por directiva)."
+                    : $"Could not change startup state for '{entry.Name}' (insufficient permissions or policy-locked).";
+                return;
+            }
             FooterStatusText.Text = _loc.IsSpanish
                 ? $"Inicio automático de '{entry.Name}': {(targetState ? "Habilitado" : "Deshabilitado")}."
                 : $"Startup entry '{entry.Name}': {(targetState ? "Enabled" : "Disabled")}.";
